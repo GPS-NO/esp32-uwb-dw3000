@@ -1,0 +1,14 @@
+out
+.idea/
+**/c_cpp_properties.json
+.pio
+.pioenvs
+.piolibdeps
+.vscode/.browse.c_cpp.db*
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch
+build_output/
+.actrc
+act/
+extras/backend/flask_session/
