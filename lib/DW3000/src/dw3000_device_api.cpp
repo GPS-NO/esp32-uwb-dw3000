@@ -795,7 +795,7 @@ int dwt_initialise(uint8_t mode)
     if(pdw3000local->init_xtrim == 0)
     {
         pdw3000local->init_xtrim = 0x2E ; //set default value
-    printf("XTRIM OTP READ FAIL\r\n");
+    //printf("XTRIM OTP READ FAIL\r\n");
     }
     dwt_write8bitoffsetreg(XTAL_ID, 0, pdw3000local->init_xtrim);
 
@@ -1484,16 +1484,16 @@ int dwt_configure(dwt_config_t *config)
         deca_usleep(DELAY_20uUSec);
         if ((dwt_read8bitoffsetreg(SYS_STATUS_ID, 0) & SYS_STATUS_CP_LOCK_BIT_MASK))
         {//PLL is locked
-      UART_puts("PLL is locked..");
-      UART_puts("\r\n");
+      //UART_puts("PLL is locked..");
+      //UART_puts("\r\n");
             flag=0;
             break;
         }
     }
     if (flag)
     { 
-    UART_puts("PLL LOCKING ERROR");
-    UART_puts("\r\n");
+    //UART_puts("PLL LOCKING ERROR");
+    //UART_puts("\r\n");
         return  DWT_ERROR;
     }
 
@@ -1590,15 +1590,15 @@ int dwt_run_pgfcal(void)
         deca_usleep(DELAY_20uUSec);
         if(dwt_read8bitoffsetreg(RX_CAL_STS_ID, 0x0) == 1)
         {//PGF cal is complete
-      UART_puts("PGF cal complete..");
-      UART_puts("\r\n");      
+      //UART_puts("PGF cal complete..");
+      //UART_puts("\r\n");      
             flag=0;
             break;
         }
     }
     if (flag)
     {
-    UART_puts("PGF CAL ERROR");
+    //UART_puts("PGF CAL ERROR");
         result = DWT_ERROR;
     }
 
@@ -1610,16 +1610,16 @@ int dwt_run_pgfcal(void)
     if (val == ERR_RX_CAL_FAIL)
     {
         //PGF I Cal Fail
-    UART_puts("PGF I CAL ERROR");
-    UART_puts("\r\n");
+    //UART_puts("PGF I CAL ERROR");
+    //UART_puts("\r\n");
         result = DWT_ERROR;
     }
     val = dwt_read32bitoffsetreg(RX_CAL_RESQ_ID, 0x0);
     if (val == ERR_RX_CAL_FAIL)
     {
         //PGF Q Cal Fail
-    UART_puts("PGF Q CAL ERROR");
-    UART_puts("\r\n");
+    //UART_puts("PGF Q CAL ERROR");
+    //UART_puts("\r\n");
         result = DWT_ERROR;
     }
     
@@ -3073,7 +3073,7 @@ int dwt_check_dev_id(void)
 
     dev_id = dwt_readdevid();
   
-  printf("DEVICE ID: %" PRIx32 "\r\n", dev_id);
+  //printf("DEVICE ID: %" PRIx32 "\r\n", dev_id);
   
     if (!((DWT_C0_PDOA_DEV_ID == dev_id) || (DWT_C0_DEV_ID == dev_id)))
     {

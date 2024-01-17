@@ -1,0 +1,47 @@
+name: Build
+
+on: 
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: ["test-rx", "test-tx"]
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install platformio --progress-bar off
+    - name: Install PlatformIO packages
+      run: |
+        export GITHASH=$(git describe --always)
+        echo "GITHASH=$GITHASH" >> $GITHUB_ENV
+        sed -i "3s/dev/$GITHASH/" src/gitHeader.h
+        cat src/gitHeader.h
+        pio pkg install
+    - name: Extract Version
+      run: |
+        VERSION_MAJOR=$(grep '#define VERSION_MAJOR' src/boarddefines.h | awk '{print $3}')
+        VERSION_MINOR=$(grep '#define VERSION_MINOR' src/boarddefines.h | awk '{print $3}')
+        VERSION_PATCH=$(grep '#define VERSION_PATCH' src/boarddefines.h | awk '{print $3}')
+        echo "VER=$VERSION_MAJOR.$VERSION_MINOR.$VERSION_PATCH" >> $GITHUB_ENV
+    - name: Build
+      run: platformio run --environment ${{ matrix.environment }}
+    - name: Rename
+      run: |
+        mkdir -p ./build_output/firmware/renamed
+        find ./build_output/firmware/ -maxdepth 1 -type f -exec sh -c 'mv "$0" "./build_output/firmware/renamed/firmware-${{ matrix.environment }}-v${{ env.VER }}-@${{ env.GITHASH }}"."${0##*.}"' {} \;
+    - uses: actions/upload-artifact@v3
+      with:
+        name: firmware
+        path: ./build_output/firmware/renamed
