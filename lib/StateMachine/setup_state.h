@@ -4,10 +4,13 @@
 #include "state_machine_state.h"
 
 class SetupState : public State {
-public:
-    virtual void onEnter() override;
-    virtual void onUpdate() override;
-    virtual void onExit() override;
+    public:
+        virtual void onEnter() override;
+        virtual void onUpdate() override;
+        virtual void onExit() override;
+
+    private:
+        void generateId(char* buffer, int length);
 };
 
 #endif
