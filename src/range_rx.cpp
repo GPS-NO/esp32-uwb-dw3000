@@ -22,7 +22,7 @@ void setup() {
 void loop() {
     Serial.println("loop: running in responder.");
     while (true) {
-        float distance = rangingSystem.respondToRanging();
+        float distance = rangingSystem.respondToRanging(7500);
         if (distance > 0.0f) {
             Serial.println("loop: Ranging response sent successfully.");
             Serial.print("loop: Distance: ");
@@ -36,7 +36,7 @@ void loop() {
 
     Serial.println("loop: running in initiator.");
     while (true) {
-        int16_t result = rangingSystem.initiateRanging();
+        int16_t result = rangingSystem.initiateRanging(7500);
         if (result > 0) {
             Serial.println("loop: Ranging initiated successfully.");
             break;

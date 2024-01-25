@@ -85,9 +85,9 @@ int8_t RangingSystem::init(int irq, int rst, int ss) {
     return 0;
 }
 
-int16_t RangingSystem::initiateRanging() {
+int16_t RangingSystem::initiateRanging(uint32_t timeout) {
     this->reset();
-    
+
     initator_poll_msg[5] = myID[0];
     initator_poll_msg[6] = myID[1];
     initator_poll_msg[7] = myID[2];
@@ -122,8 +122,10 @@ int16_t RangingSystem::initiateRanging() {
 
     /* We assume that the transmission is achieved correctly, poll for
      * reception of a frame or error/timeout. See NOTE 10 below. */
-    while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR)))
-        ;
+    this->timeout_started = millis();
+    while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR))) {
+        if (timeout > 0 && millis() - this->timeout_started > timeout) return -3;
+    }
 
     /* Increment frame sequence number after transmission of the
      * poll message (modulo 256). */
@@ -171,8 +173,10 @@ int16_t RangingSystem::initiateRanging() {
              * proceed to the next one. See NOTE 13 below. */
             if (dwt_starttx(DWT_START_TX_DELAYED) == DWT_SUCCESS) {
                 /* Poll DW IC until TX frame sent event set. See NOTE 10 below. */
-                while (!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS_BIT_MASK))
-                    ;
+                this->timeout_started = millis();
+                while (!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS_BIT_MASK)) {
+                    if (timeout > 0 && millis() - this->timeout_started > timeout) return -3;
+                }
 
                 /* Clear TXFRS event. */
                 dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS_BIT_MASK);
@@ -192,7 +196,7 @@ int16_t RangingSystem::initiateRanging() {
     return 0;
 }
 
-float RangingSystem::respondToRanging() {
+float RangingSystem::respondToRanging(uint32_t timeout) {
     this->reset();
     initator_poll_msg[5] = otherID[0];
     initator_poll_msg[6] = otherID[1];
@@ -217,8 +221,10 @@ float RangingSystem::respondToRanging() {
     dwt_rxenable(DWT_START_RX_IMMEDIATE);
 
     /* Poll for reception of a frame or error/timeout. See NOTE 8 below. */
-    while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR)))
-        ;
+    this->timeout_started = millis();
+    while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR))) {
+        if (timeout > 0 && millis() - this->timeout_started > timeout) return -2;
+    }
 
     if (status_reg & SYS_STATUS_RXFCG_BIT_MASK) {
         /* Clear good RX frame event in the DW IC status register. */
@@ -263,8 +269,10 @@ float RangingSystem::respondToRanging() {
             /* Poll for reception of expected "final" frame or error/timeout.
              * See NOTE 8 below.
              */
-            while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR)))
-                ;
+            this->timeout_started = millis();
+            while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR))) {
+                if (timeout > 0 && millis() - this->timeout_started > timeout) return -3;
+            }
 
             /* Increment frame sequence number after transmission of the
              * response message (modulo 256).

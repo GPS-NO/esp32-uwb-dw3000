@@ -75,6 +75,8 @@ class RangingSystem {
     double tof;
     double distance;
 
+    unsigned long timeout_started;
+
     dwt_config_t config;
 
     void printHex(uint8_t num);
@@ -84,8 +86,8 @@ class RangingSystem {
     ~RangingSystem();
 
     int8_t init(int irq, int rst, int ss);
-    int16_t initiateRanging();
-    float respondToRanging();
+    int16_t initiateRanging(uint32_t timeout);
+    float respondToRanging(uint32_t timeout);
     void reset();
 };
 #endif
