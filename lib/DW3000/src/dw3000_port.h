@@ -166,7 +166,7 @@ boolean getBit(byte data[], uint16_t n, uint16_t bit);
 void writeValueToBytes(byte data[], int32_t val, uint16_t n);
 void writeBytes(byte cmd, uint16_t offset, byte data[], uint16_t data_size);
 void writeByte(byte cmd, uint16_t offset, byte data);
-void reset();
+void dwt_reset();
 void softReset();
 void idle();
 void spiBegin(uint8_t irq, uint8_t rst);
