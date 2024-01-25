@@ -235,7 +235,7 @@ void enableClock(byte clock) {
   writeBytes(PMSC, PMSC_CTRL0_SUB, pmscctrl0, 2);
 }
 
-void reset() {
+void dwt_reset() {
   if(_rst == 0xff) {
     softReset();
   } else {
@@ -418,7 +418,7 @@ void spiSelect(uint8_t ss) {
     // dw1000 data sheet v2.08 §5.6.1 page 20, the RSTn pin should not be driven high but left floating.
     pinMode(_rst, INPUT);
   }
-  reset();
+  dwt_reset();
   // default network and node id
   writeValueToBytes(_networkAndAddress, 0xFF, LEN_PANADR);
   writeNetworkIdAndDeviceAddress();

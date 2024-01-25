@@ -1,48 +1,50 @@
 #include "ranging.h"
 
-/* Frames used in the ranging process. See NOTE 2 below. */
-static uint8_t initator_poll_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, '-', '-', '-', '-', 0x21, 0, 0};
-static uint8_t reponder_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, '-', '-', '-', '-', 0x10, 0x02, 0, 0, 0, 0};
-static uint8_t initator_final_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, '-', '-', '-', '-', 0x23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-/* Frame sequence number, incremented after each transmission. */
-static uint8_t frame_seq_nb = 0;
-
-/* Buffer to store received response message.
- * Its size is adjusted to longest frame that this example code
- * is supposed to handle. */
-#define RX_BUF_LEN 32
-static uint8_t rx_buffer[RX_BUF_LEN];
-
-/* Hold copy of status register state here for reference so that it can be
- * examined at a debug breakpoint. */
-static uint32_t status_reg = 0;
-
-/* Time-stamps of frames transmission/reception, expressed in device time units. */
-static uint64_t poll_ts;
-static uint64_t resp_ts;
-static uint64_t final_ts;
-
-/* Hold copies of computed time of flight and distance here for reference
- * so that it can be examined at a debug breakpoint. */
-static double tof;
-static double distance;
-
 /* Values for the PG_DELAY and TX_POWER registers reflect the bandwidth and power
  * of the spectrum at the current temperature.
  * These values can be calibrated prior to taking reference measurements.
  * See NOTE 8 below. */
 extern dwt_txconfig_t txconfig_options;
 
-void printHex(uint8_t num) {
+RangingSystem::RangingSystem(uint8_t mID[4], uint8_t oID[4]) {
+    /* Default communication configuration. We use default non-STS DW mode. */
+    config = {
+        5,                /* Channel number. */
+        DWT_PLEN_128,     /* Preamble length. Used in TX only. */
+        DWT_PAC8,         /* Preamble acquisition chunk size. Used in RX only. */
+        9,                /* TX preamble code. Used in TX only. */
+        9,                /* RX preamble code. Used in RX only. */
+        1,                /* 0 to use standard 8 symbol SFD, 1 to use non-standard 8 symbol, 2 for non-standard 16 symbol SFD and 3 for 4z 8 symbol SDF type */
+        DWT_BR_6M8,       /* Data rate. */
+        DWT_PHRMODE_STD,  /* PHY header mode. */
+        DWT_PHRRATE_STD,  /* PHY header rate. */
+        (129 + 8 - 8),    /* SFD timeout (preamble length + 1 + SFD length - PAC size). Used in RX only. */
+        DWT_STS_MODE_OFF, /* STS disabled */
+        DWT_STS_LEN_64,   /* STS length see allowed values in Enum dwt_sts_lengths_e */
+        DWT_PDOA_M0       /* PDOA mode off */
+    };
+
+    std::copy(mID, mID + sizeof(mID) / sizeof(mID[0]), myID);
+    std::copy(oID, oID + sizeof(oID) / sizeof(oID[0]), otherID);
+
+    this->reset();
+}
+
+RangingSystem::~RangingSystem() {
+    // Cleanup or release resources if needed
+}
+
+void RangingSystem::printHex(uint8_t num) {
     char hexCar[2];
     sprintf(hexCar, "%02X", num);
     Serial.print(hexCar);
 }
 
-int8_t ranging_init(int irq, int rst, int ss) {
+int8_t RangingSystem::init(int irq, int rst, int ss) {
     spiBegin(irq, rst);
     spiSelect(ss);
+
+    dwt_reset();
 
     /* Time needed for DW3000 to start up (transition from INIT_RC to IDLE_RC */
     delay(2);
@@ -73,13 +75,6 @@ int8_t ranging_init(int irq, int rst, int ss) {
     dwt_setrxantennadelay(RX_ANT_DLY);
     dwt_settxantennadelay(TX_ANT_DLY);
 
-    /* Set expected response's delay and timeout. See NOTE 4, 5 and 7 below.
-     * As this example only handles one incoming frame with always the same
-     * delay and timeout, those values can be set here once for all. */
-    dwt_setrxaftertxdelay(POLL_TX_TO_RESP_RX_DLY_UUS);
-    dwt_setrxtimeout(RESP_RX_TIMEOUT_UUS);
-    dwt_setpreambledetecttimeout(PRE_TIMEOUT);
-
     /* Next can enable TX/RX states output on GPIOs 5 and 6 to help debug,
      * and also TX/RX LEDs.
      * Note, in real low power applications the LEDs should not be used. */
@@ -90,21 +85,30 @@ int8_t ranging_init(int irq, int rst, int ss) {
     return 0;
 }
 
-int16_t ranging_initator(char myID[], char otherID[]) {
+int16_t RangingSystem::initiateRanging() {
+    this->reset();
+    
     initator_poll_msg[5] = myID[0];
     initator_poll_msg[6] = myID[1];
     initator_poll_msg[7] = myID[2];
     initator_poll_msg[8] = myID[3];
 
-    reponder_msg[5] = otherID[0];
-    reponder_msg[6] = otherID[1];
-    reponder_msg[7] = otherID[2];
-    reponder_msg[8] = otherID[3];
+    responder_msg[5] = otherID[0];
+    responder_msg[6] = otherID[1];
+    responder_msg[7] = otherID[2];
+    responder_msg[8] = otherID[3];
 
     initator_final_msg[5] = myID[0];
     initator_final_msg[6] = myID[1];
     initator_final_msg[7] = myID[2];
     initator_final_msg[8] = myID[3];
+
+    /* Set expected response's delay and timeout. See NOTE 4, 5 and 7 below.
+     * As this example only handles one incoming frame with always the same
+     * delay and timeout, those values can be set here once for all. */
+    dwt_setrxaftertxdelay(POLL_TX_TO_RESP_RX_DLY_UUS);
+    dwt_setrxtimeout(RESP_RX_TIMEOUT_UUS);
+    dwt_setpreambledetecttimeout(PRE_TIMEOUT);
 
     /* Write frame data to DW IC and prepare transmission. See NOTE 9 below. */
     initator_poll_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
@@ -138,7 +142,7 @@ int16_t ranging_initator(char myID[], char otherID[]) {
          * As the sequence number field of the frame is not relevant,
          * it is cleared to simplify the validation of the frame. */
         rx_buffer[ALL_MSG_SN_IDX] = 0;
-        if (memcmp(rx_buffer, reponder_msg, ALL_MSG_COMMON_LEN) == 0) {
+        if (memcmp(rx_buffer, responder_msg, ALL_MSG_COMMON_LEN) == 0) {
             uint32_t final_tx_time;
 
             /* Retrieve poll transmission and response reception timestamp. */
@@ -188,16 +192,17 @@ int16_t ranging_initator(char myID[], char otherID[]) {
     return 0;
 }
 
-float ranging_responder(char myID[], char otherID[]) {
+float RangingSystem::respondToRanging() {
+    this->reset();
     initator_poll_msg[5] = otherID[0];
     initator_poll_msg[6] = otherID[1];
     initator_poll_msg[7] = otherID[2];
     initator_poll_msg[8] = otherID[3];
 
-    reponder_msg[5] = myID[0];
-    reponder_msg[6] = myID[1];
-    reponder_msg[7] = myID[2];
-    reponder_msg[8] = myID[3];
+    responder_msg[5] = myID[0];
+    responder_msg[6] = myID[1];
+    responder_msg[7] = myID[2];
+    responder_msg[8] = myID[3];
 
     initator_final_msg[5] = otherID[0];
     initator_final_msg[6] = otherID[1];
@@ -246,9 +251,9 @@ float ranging_responder(char myID[], char otherID[]) {
             dwt_setpreambledetecttimeout(PRE_TIMEOUT);
 
             /* Write and send the response message. See NOTE 10 below.*/
-            reponder_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
-            dwt_writetxdata(sizeof(reponder_msg), reponder_msg, 0); /* Zero offset in TX buffer. */
-            dwt_writetxfctrl(sizeof(reponder_msg), 0, 1);           /* Zero offset in TX buffer, ranging. */
+            responder_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
+            dwt_writetxdata(sizeof(responder_msg), responder_msg, 0); /* Zero offset in TX buffer. */
+            dwt_writetxfctrl(sizeof(responder_msg), 0, 1);            /* Zero offset in TX buffer, ranging. */
             int ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
 
             /* If dwt_starttx() returns an error, abandon this ranging
@@ -332,4 +337,37 @@ float ranging_responder(char myID[], char otherID[]) {
         dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
 
     return 0;
+}
+
+void RangingSystem::reset() {
+    /* Frames used in the ranging process. See NOTE 2 below. */
+    uint8_t val_initator_poll_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, '-', '-', '-', '-', 0x21, 0, 0};
+    uint8_t val_responder_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, '-', '-', '-', '-', 0x10, 0x02, 0, 0, 0, 0};
+    uint8_t val_initator_final_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, '-', '-', '-', '-', 0x23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+    std::copy(val_initator_poll_msg, val_initator_poll_msg + sizeof(val_initator_poll_msg) / sizeof(val_initator_poll_msg[0]), initator_poll_msg);
+    std::copy(val_responder_msg, val_responder_msg + sizeof(val_responder_msg) / sizeof(val_responder_msg[0]), responder_msg);
+    std::copy(val_initator_final_msg, val_initator_final_msg + sizeof(val_initator_final_msg) / sizeof(val_initator_final_msg[0]), initator_final_msg);
+
+    /* Frame sequence number, incremented after each transmission. */
+    frame_seq_nb = 0;
+
+    /* Buffer to store received response message.
+     * Its size is adjusted to longest frame that this example code
+     * is supposed to handle. */
+    memset(rx_buffer, 0, sizeof(rx_buffer));
+
+    /* Hold copy of status register state here for reference so that it can be
+     * examined at a debug breakpoint. */
+    status_reg = 0;
+
+    /* Time-stamps of frames transmission/reception, expressed in device time units. */
+    poll_ts = 0;
+    resp_ts = 0;
+    final_ts = 0;
+
+    /* Hold copies of computed time of flight and distance here for reference
+     * so that it can be examined at a debug breakpoint. */
+    tof = 0.0;
+    distance = 0.0;
 }
