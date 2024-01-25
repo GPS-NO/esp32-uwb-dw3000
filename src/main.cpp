@@ -1,40 +1,23 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include "state_machine.h"
-
-StateMachine stateMachine;
+#include "state_machine_state.h"
+#include "idle_state.h"
+#include "setup_state.h"
 
 const int flashBtnPin = 0;
 
+State* StateMachineState::idleState = new IdleState();
+State* StateMachineState::setupState = new SetupState();
+State* StateMachineState::currentState = StateMachineState::idleState;
+
 void setup(){
+    Serial.begin(115200);
+    while (!Serial) {;}
+
     pinMode(flashBtnPin, INPUT_PULLUP);
 }
 
 void loop(){
-    State currentState = stateMachine.getState();
-
-    switch(currentState){
-        case IDLE:
-            printf("IDLE\n");
-             if (digitalRead(flashBtnPin) == LOW) {
-                printf("PRESSED\n");
-            }
-            break;
-        case SETUP:
-            //
-            break;
-        case RUNNING:
-            //
-            break;
-        case STOPPED:
-            //
-            break;
-        case ERROR:
-            //
-            break;
-        default:
-            stateMachine.setState(IDLE);
-            break;
-    }
-    delay(1000);
+    StateMachineState::currentState->onEnter(); 
+    StateMachineState::currentState->onUpdate();    
 }
