@@ -11,6 +11,7 @@ class SetupState : public State {
 
     private:
         void generateId(char* buffer, int length);
+        void connectToWiFi(const char* ssid, const char* password);
 };
 
 #endif
