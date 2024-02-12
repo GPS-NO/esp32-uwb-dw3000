@@ -51,7 +51,6 @@ ConfigError ConfigManager::loadConfig()
     DeserializationError error = deserializeJson(doc, file);
 
     file.close();
-    SPIFFS.end();
 
     if (error)
     {
@@ -60,17 +59,24 @@ ConfigError ConfigManager::loadConfig()
         return DESERIALIZATION_ERROR;
     }
 
-    strncpy(deviceConfig.ssid, doc["ssid"].as<const char *>(), sizeof(deviceConfig.ssid));
-    deviceConfig.ssid[sizeof(deviceConfig.ssid) - 1] = '\0';
+    instance->copyString(doc["wifi"]["ssid"].as<const char *>(), deviceConfig.wifi.ssid, sizeof(deviceConfig.wifi.ssid));
+    instance->copyString(doc["wifi"]["password"].as<const char *>(), deviceConfig.wifi.password, sizeof(deviceConfig.wifi.password));
+    instance->copyString(doc["device_id"].as<const char *>(), deviceConfig.deviceId, sizeof(deviceConfig.deviceId));
 
-    strncpy(deviceConfig.password, doc["password"].as<const char *>(), sizeof(deviceConfig.password));
-    deviceConfig.password[sizeof(deviceConfig.password) - 1] = '\0';
+    deviceConfig.wifi.attemptDelay = doc["wifi"]["attemptDelay"].as<int>();
+    deviceConfig.wifi.maxAttempts = doc["wifi"]["maxAttempts"].as<int>();
 
-    strncpy(deviceConfig.deviceId, doc["device_id"].as<const char *>(), sizeof(deviceConfig.deviceId));
-    deviceConfig.deviceId[sizeof(deviceConfig.deviceId) - 1] = '\0';
+    instance->copyString(doc["mqtt"]["host"].as<const char *>(), deviceConfig.mqtt.host, sizeof(deviceConfig.mqtt.host));
 
-    deviceConfig.attemptDelay = doc["attemptDelay"].as<int>();
-    deviceConfig.maxAttempts = doc["maxAttempts"].as<int>();
+    deviceConfig.mqtt.port = doc["mqtt"]["port"].as<int>();
+
+    instance->copyString(doc["mqtt"]["username"].as<const char *>(), deviceConfig.mqtt.username, sizeof(deviceConfig.mqtt.username));
+    instance->copyString(doc["mqtt"]["password"].as<const char *>(), deviceConfig.mqtt.password, sizeof(deviceConfig.mqtt.password));
 
     return CONFIG_OK;
+}
+
+void ConfigManager::copyString(const char* source, char* dest, size_t size) {
+    strncpy(dest, source, size);
+    dest[size - 1] = '\0';
 }

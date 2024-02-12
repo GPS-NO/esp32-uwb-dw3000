@@ -15,19 +15,30 @@ enum ConfigError
     UNKNOWN_ERROR
 };
 
-struct DeviceConfig
-{
+struct WifiConfig {
     char ssid[32];
     char password[64];
-    char deviceId[32];
     int attemptDelay;
     int maxAttempts;
 };
 
+struct MqttConfig {
+    char host[32];
+    int port;
+    char username[32];
+    char password[64];
+};
+
+struct DeviceConfig {
+    WifiConfig wifi;
+    MqttConfig mqtt;
+    char deviceId[32];
+};
 class ConfigManager
 {
 private:
     static ConfigManager *instance;
+    void copyString(const char* source, char* dest, size_t size);
 
     ConfigManager();
 
