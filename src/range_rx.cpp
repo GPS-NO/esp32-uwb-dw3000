@@ -3,10 +3,9 @@
 #include "boarddefines.h"
 #include "ranging.h"
 
-uint8_t myID[] = {'5', '6', '7', '8'};
 uint8_t otherID[] = {'1', '2', '3', '4'};
 
-RangingSystem rangingSystem(myID, otherID);
+RangingSystem rangingSystem(otherID);
 
 void setup() {
     Serial.begin(MON_SPEED);

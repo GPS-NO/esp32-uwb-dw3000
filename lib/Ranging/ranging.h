@@ -57,6 +57,8 @@
 
 class RangingSystem {
    private:
+    uint32_t chipId = 0;
+
     uint8_t initator_poll_msg[12];
     uint8_t responder_msg[15];
     uint8_t initator_final_msg[24];
@@ -82,7 +84,7 @@ class RangingSystem {
     void printHex(uint8_t num);
 
    public:
-    RangingSystem(uint8_t mID[4], uint8_t oID[4]);
+    RangingSystem(uint8_t oID[4]);
     ~RangingSystem();
 
     int8_t init(int irq, int rst, int ss);

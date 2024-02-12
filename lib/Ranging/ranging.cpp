@@ -6,7 +6,21 @@
  * See NOTE 8 below. */
 extern dwt_txconfig_t txconfig_options;
 
-RangingSystem::RangingSystem(uint8_t mID[4], uint8_t oID[4]) {
+RangingSystem::RangingSystem(uint8_t oID[4]) {
+    for (int i = 0; i < 17; i = i + 8) {
+        chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
+    }
+
+    randomSeed(chipId);
+    Serial.print("RangingSystem: my generated ID is ");
+    for (int i = 0; i < 4; i++) {
+        // Generate a random character and add it to the result string
+        char randomChar = random('0', 'Z' + 1);
+        myID[i] = randomChar;
+        Serial.print(randomChar);
+    }
+    Serial.println();
+
     /* Default communication configuration. We use default non-STS DW mode. */
     config = {
         5,                /* Channel number. */
@@ -24,7 +38,6 @@ RangingSystem::RangingSystem(uint8_t mID[4], uint8_t oID[4]) {
         DWT_PDOA_M0       /* PDOA mode off */
     };
 
-    std::copy(mID, mID + sizeof(mID) / sizeof(mID[0]), myID);
     std::copy(oID, oID + sizeof(oID) / sizeof(oID[0]), otherID);
 
     this->reset();
