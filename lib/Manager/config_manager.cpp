@@ -4,26 +4,29 @@
 #include <ArduinoJson.h>
 #include <esp_system.h>
 
-
 DeviceConfig ConfigManager::deviceConfig;
 
-ConfigError ConfigManager::loadConfig() {
+ConfigError ConfigManager::loadConfig()
+{
     String configFile = "/device.json";
 
-    if (!SPIFFS.begin(true)) {
+    if (!SPIFFS.begin(true))
+    {
         Serial.println("Error initializing the file system!");
         return FORMATTING_ERROR;
     }
 
     File file = SPIFFS.open(configFile, "r");
-    if (!file) {
+    if (!file)
+    {
         Serial.println("Error opening the configuration file!");
         SPIFFS.end();
         return FILE_OPEN_ERROR;
     }
 
     size_t fileSize = file.size();
-    if (fileSize == 0) {
+    if (fileSize == 0)
+    {
         Serial.println("The configuration file is empty!");
         file.close();
         SPIFFS.end();
@@ -36,19 +39,20 @@ ConfigError ConfigManager::loadConfig() {
     file.close();
     SPIFFS.end();
 
-    if (error) {
+    if (error)
+    {
         Serial.print("Error deserializing the configuration file: ");
         Serial.println(error.c_str());
         return DESERIALIZATION_ERROR;
     }
 
-    strncpy(deviceConfig.ssid, doc["ssid"].as<const char*>(), sizeof(deviceConfig.ssid));
+    strncpy(deviceConfig.ssid, doc["ssid"].as<const char *>(), sizeof(deviceConfig.ssid));
     deviceConfig.ssid[sizeof(deviceConfig.ssid) - 1] = '\0';
 
-    strncpy(deviceConfig.password, doc["password"].as<const char*>(), sizeof(deviceConfig.password));
+    strncpy(deviceConfig.password, doc["password"].as<const char *>(), sizeof(deviceConfig.password));
     deviceConfig.password[sizeof(deviceConfig.password) - 1] = '\0';
 
-    strncpy(deviceConfig.deviceId, doc["device_id"].as<const char*>(), sizeof(deviceConfig.deviceId));
+    strncpy(deviceConfig.deviceId, doc["device_id"].as<const char *>(), sizeof(deviceConfig.deviceId));
     deviceConfig.deviceId[sizeof(deviceConfig.deviceId) - 1] = '\0';
 
     return CONFIG_OK;
