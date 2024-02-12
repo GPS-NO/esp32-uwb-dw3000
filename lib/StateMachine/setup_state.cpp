@@ -4,22 +4,19 @@ void SetupState::onEnter()
 {
     Serial.println("[*] Enter State: Setup");
     configManager = ConfigManager::getInstance();
-    mqttManager = MqttManager::getInstance("", 1883);
-}
+    mqttManager = MqttManager::getInstance();
 
-void SetupState::onUpdate()
-{
-    if (strlen(configManager->deviceConfig.ssid) == 0 || strlen(configManager->deviceConfig.password) == 0)
+    if (strlen(configManager->deviceConfig.wifi.ssid) == 0 || strlen(configManager->deviceConfig.wifi.password) == 0)
     {
         Serial.println("No WiFi credentials found.");
         return;
     }
 
     mqttManager->connect();
+}
 
-    // Existiert eine Verbindung?
-    // + Verbinde mit MQTT
-
+void SetupState::onUpdate()
+{
     Serial.println("================================");
     Serial.println("1: Wechsel in State: Error");
     Serial.println("================================");
@@ -34,6 +31,10 @@ void SetupState::onUpdate()
             {
             case 1:
                 Serial.println("Dieser State existiert noch nicht!");
+                break;
+            case 2:
+                mqttManager->publish("Test", "Hello World!");
+                mqttManager->registerDevice();
                 break;
             default:
                 Serial.println("Ungültige Kombination.");

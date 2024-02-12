@@ -1,18 +1,19 @@
 #include "mqtt_manager.h"
+#include <ArduinoJson.h>
 
 MqttManager *MqttManager::instance = nullptr;
 
-MqttManager::MqttManager(const char *server, int port)
-    : mqttServer(server), mqttPort(port), mqttClient(wifiClient)
+MqttManager::MqttManager()
+    : mqttClient(wifiClient)
 {
     configManager = ConfigManager::getInstance();
 }
 
-MqttManager *MqttManager::getInstance(const char *server, int port)
+MqttManager *MqttManager::getInstance()
 {
     if (instance == NULL)
     {
-        instance = new MqttManager(server, port);
+        instance = new MqttManager();
     }
 
     return instance;
@@ -20,10 +21,6 @@ MqttManager *MqttManager::getInstance(const char *server, int port)
 
 void MqttManager::setupWifi(const char *ssid, const char *password, int maxAttempts, int attemptDelay)
 {
-    Serial.println(ssid);
-    Serial.println(password);
-    Serial.println(maxAttempts);
-    Serial.println(attemptDelay);
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
 
@@ -53,11 +50,8 @@ void MqttManager::setupWifi(const char *ssid, const char *password, int maxAttem
 
 void MqttManager::publish(const char *topic, const char *payload)
 {
-    if (!mqttClient.connected())
-    {
-        // connect();
-    }
 
+    Serial.println("publishing..");
     mqttClient.publish(topic, payload);
 }
 
@@ -94,11 +88,36 @@ void MqttManager::connect()
 {
     if (WiFi.status() != WL_CONNECTED)
     {
-        char *ssid = configManager->deviceConfig.ssid;
-        char *password = configManager->deviceConfig.password;
-        int maxAttempts = configManager->deviceConfig.maxAttempts;
-        int attemptDelay = configManager->deviceConfig.attemptDelay;
+        char *ssid = configManager->deviceConfig.wifi.ssid;
+        char *password = configManager->deviceConfig.wifi.password;
+        int maxAttempts = configManager->deviceConfig.wifi.maxAttempts;
+        int attemptDelay = configManager->deviceConfig.wifi.attemptDelay;
 
         this->setupWifi(ssid, password, maxAttempts, attemptDelay);
     }
+
+    char *host = configManager->deviceConfig.mqtt.host;
+    int port = configManager->deviceConfig.mqtt.port;
+    char *username = configManager->deviceConfig.mqtt.username;
+    char *password = configManager->deviceConfig.mqtt.password;
+
+    mqttClient.setServer(host, port);
+    mqttClient.connect("ESP32Client", username, password);
+    mqttClient.publish("test", "Hello World!");
+    this->registerDevice();
+}
+
+void MqttManager::registerDevice()
+{
+    mqttClient.publish("devices/wifi/ssid", configManager->deviceConfig.wifi.ssid);
+    char *wifiPassword = configManager->hidePartialPassword(configManager->deviceConfig.wifi.password);
+    mqttClient.publish("devices/wifi/password", wifiPassword);
+    mqttClient.publish("devices/wifi/maxAttempts", String(configManager->deviceConfig.wifi.maxAttempts).c_str());
+    mqttClient.publish("devices/wifi/attemptDelay", String(configManager->deviceConfig.wifi.attemptDelay).c_str());
+
+    mqttClient.publish("devices/mqtt/host", configManager->deviceConfig.mqtt.host);
+    mqttClient.publish("devices/mqtt/port", String(configManager->deviceConfig.mqtt.port).c_str());
+    mqttClient.publish("devices/mqtt/username", configManager->deviceConfig.mqtt.username);
+    char *mqttPassword = configManager->hidePartialPassword(configManager->deviceConfig.mqtt.password);
+    mqttClient.publish("devices/mqtt/password", mqttPassword);
 }

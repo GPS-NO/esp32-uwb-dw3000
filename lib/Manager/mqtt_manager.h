@@ -10,20 +10,19 @@ class MqttManager
 {
 private:
     static MqttManager *instance;
-    const char *mqttServer;
-    const int mqttPort;
     WiFiClient wifiClient;
     PubSubClient mqttClient;
 
-    MqttManager(const char *server, int port);
+    MqttManager();
 
 public:
-    static MqttManager *getInstance(const char *server, int port);
+    static MqttManager *getInstance();
 
     void publish(const char *topic, const char *payload);
     void subscribe(const char *topic);
     void connect();
     void setupWifi(const char *ssid, const char *password, int maxAttempts, int attemptDelay);
+    void registerDevice();
     bool messageReceived();
     String getMessageTopic();
     String getMessagePayload();
