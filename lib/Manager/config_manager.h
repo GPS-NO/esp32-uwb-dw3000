@@ -20,11 +20,20 @@ struct DeviceConfig
     char ssid[32];
     char password[64];
     char deviceId[32];
+    int attemptDelay;
+    int maxAttempts;
 };
 
 class ConfigManager
 {
+private:
+    static ConfigManager *instance;
+
+    ConfigManager();
+
 public:
+    static ConfigManager *getInstance();
+
     static DeviceConfig deviceConfig;
     static ConfigError loadConfig();
 };

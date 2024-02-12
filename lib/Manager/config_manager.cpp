@@ -4,7 +4,21 @@
 #include <ArduinoJson.h>
 #include <esp_system.h>
 
+ConfigManager *ConfigManager::instance = nullptr;
 DeviceConfig ConfigManager::deviceConfig;
+
+ConfigManager::ConfigManager() {}
+
+ConfigManager *ConfigManager::getInstance()
+{
+    if (instance == NULL)
+    {
+        instance = new ConfigManager();
+        instance->loadConfig();
+    }
+
+    return instance;
+}
 
 ConfigError ConfigManager::loadConfig()
 {
@@ -54,6 +68,9 @@ ConfigError ConfigManager::loadConfig()
 
     strncpy(deviceConfig.deviceId, doc["device_id"].as<const char *>(), sizeof(deviceConfig.deviceId));
     deviceConfig.deviceId[sizeof(deviceConfig.deviceId) - 1] = '\0';
+
+    deviceConfig.attemptDelay = doc["attemptDelay"].as<int>();
+    deviceConfig.maxAttempts = doc["maxAttempts"].as<int>();
 
     return CONFIG_OK;
 }

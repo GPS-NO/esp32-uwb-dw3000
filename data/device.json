@@ -1,5 +1,7 @@
 {
     "ssid": "",
     "password": "",
-    "device_id": ""
+    "device_id": "",
+    "maxAttempts": 10,
+    "attemptDelay": 1000
 }
