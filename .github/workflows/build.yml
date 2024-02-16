@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        environment: ["test-rx", "test-tx"]
+        environment: ["main"]
     steps:
     - uses: actions/checkout@v4
       with:
