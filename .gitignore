@@ -12,3 +12,4 @@ build_output/
 .actrc
 act/
 extras/backend/flask_session/
+device.json
