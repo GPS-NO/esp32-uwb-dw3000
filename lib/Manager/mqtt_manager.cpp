@@ -1,93 +1,77 @@
 #include "mqtt_manager.h"
+
 #include <ArduinoJson.h>
 
 MqttManager *MqttManager::instance = nullptr;
 
 MqttManager::MqttManager()
-    : mqttClient(wifiClient)
-{
+    : mqttClient(wifiClient) {
     configManager = ConfigManager::getInstance();
 }
 
-MqttManager *MqttManager::getInstance()
-{
-    if (instance == NULL)
-    {
+MqttManager *MqttManager::getInstance() {
+    if (instance == NULL) {
         instance = new MqttManager();
     }
 
     return instance;
 }
 
-void MqttManager::setupWifi(const char *ssid, const char *password, int maxAttempts, int attemptDelay)
-{
+void MqttManager::setupWifi(const char *ssid, const char *password, int maxAttempts, int attemptDelay) {
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
 
     unsigned long startMillis = millis();
     int attempts = 0;
 
-    while (WiFi.status() != WL_CONNECTED && millis() - startMillis < maxAttempts * attemptDelay)
-    {
+    while (WiFi.status() != WL_CONNECTED && millis() - startMillis < maxAttempts * attemptDelay) {
         delay(attemptDelay);
         Serial.print(".");
         attempts++;
     }
 
-    if (WiFi.status() == WL_CONNECTED)
-    {
+    if (WiFi.status() == WL_CONNECTED) {
         Serial.println("");
         Serial.println("Successfully connected to the WiFi network with the following local IP: ");
         Serial.print(WiFi.localIP());
         Serial.println("");
-    }
-    else
-    {
+    } else {
         Serial.println("Error connecting to the WiFi network!");
         Serial.println(WiFi.status());
     }
 }
 
-void MqttManager::publish(const char *topic, const char *payload)
-{
-
+void MqttManager::publish(const char *topic, const char *payload) {
     Serial.println("publishing..");
     mqttClient.publish(topic, payload);
 }
 
-void MqttManager::subscribe(const char *topic)
-{
-    if (!mqttClient.connected())
-    {
+void MqttManager::subscribe(const char *topic) {
+    if (!mqttClient.connected()) {
         // connect();
     }
 
     mqttClient.subscribe(topic);
 }
 
-bool MqttManager::messageReceived()
-{
+bool MqttManager::messageReceived() {
     // mqttClient.loop();
     return true;
 }
 
-String MqttManager::getMessageTopic()
-{
+String MqttManager::getMessageTopic() {
     // return mqttClient.topic();
     return "";
 }
 
-String MqttManager::getMessagePayload()
-{
+String MqttManager::getMessagePayload() {
     // return mqttClient.payload();
     // return mqttClient.payloadString();
     return "";
 }
 
-void MqttManager::connect()
-{
-    if (WiFi.status() != WL_CONNECTED)
-    {
+void MqttManager::connect() {
+    if (WiFi.status() != WL_CONNECTED) {
         char *ssid = configManager->deviceConfig.wifi.ssid;
         char *password = configManager->deviceConfig.wifi.password;
         int maxAttempts = configManager->deviceConfig.wifi.maxAttempts;
@@ -102,22 +86,60 @@ void MqttManager::connect()
     char *password = configManager->deviceConfig.mqtt.password;
 
     mqttClient.setServer(host, port);
-    mqttClient.connect("ESP32Client", username, password);
-    mqttClient.publish("test", "Hello World!");
+    mqttClient.connect(configManager->deviceConfig.deviceId, username, password);
+
+    char topicBuffer[64];
+    sprintf(topicBuffer, "devices/%s/heartbeat", configManager->deviceConfig.deviceId);
+    mqttClient.publish(topicBuffer, String(millis()).c_str());
+
     this->registerDevice();
 }
 
-void MqttManager::registerDevice()
-{
-    mqttClient.publish("devices/wifi/ssid", configManager->deviceConfig.wifi.ssid);
-    char *wifiPassword = configManager->hidePartialPassword(configManager->deviceConfig.wifi.password);
-    mqttClient.publish("devices/wifi/password", wifiPassword);
-    mqttClient.publish("devices/wifi/maxAttempts", String(configManager->deviceConfig.wifi.maxAttempts).c_str());
-    mqttClient.publish("devices/wifi/attemptDelay", String(configManager->deviceConfig.wifi.attemptDelay).c_str());
+void MqttManager::registerDevice() {
+    char topicBuffer[64];
 
-    mqttClient.publish("devices/mqtt/host", configManager->deviceConfig.mqtt.host);
-    mqttClient.publish("devices/mqtt/port", String(configManager->deviceConfig.mqtt.port).c_str());
-    mqttClient.publish("devices/mqtt/username", configManager->deviceConfig.mqtt.username);
+    sprintf(topicBuffer, "devices/%s/wifi/ssid", configManager->deviceConfig.deviceId);
+    mqttClient.publish(topicBuffer, configManager->deviceConfig.wifi.ssid);
+
+    sprintf(topicBuffer, "devices/%s/wifi/password", configManager->deviceConfig.deviceId);
+    char *wifiPassword = configManager->hidePartialPassword(configManager->deviceConfig.wifi.password);
+    mqttClient.publish(topicBuffer, wifiPassword);
+
+    sprintf(topicBuffer, "devices/%s/wifi/maxAttempts", configManager->deviceConfig.deviceId);
+    mqttClient.publish(topicBuffer, String(configManager->deviceConfig.wifi.maxAttempts).c_str());
+
+    sprintf(topicBuffer, "devices/%s/wifi/attemptDelay", configManager->deviceConfig.deviceId);
+    mqttClient.publish(topicBuffer, String(configManager->deviceConfig.wifi.attemptDelay).c_str());
+
+    // ------------------------------------------------------------------------------------------
+
+    sprintf(topicBuffer, "devices/%s/mqtt/host", configManager->deviceConfig.deviceId);
+    mqttClient.publish(topicBuffer, configManager->deviceConfig.mqtt.host);
+
+    sprintf(topicBuffer, "devices/%s/mqtt/port", configManager->deviceConfig.deviceId);
+    mqttClient.publish(topicBuffer, String(configManager->deviceConfig.mqtt.port).c_str());
+
+    sprintf(topicBuffer, "devices/%s/mqtt/username", configManager->deviceConfig.deviceId);
+    mqttClient.publish(topicBuffer, configManager->deviceConfig.mqtt.username);
+
+    sprintf(topicBuffer, "devices/%s/mqtt/password", configManager->deviceConfig.deviceId);
     char *mqttPassword = configManager->hidePartialPassword(configManager->deviceConfig.mqtt.password);
-    mqttClient.publish("devices/mqtt/password", mqttPassword);
+    mqttClient.publish(topicBuffer, mqttPassword);
+
+    // ------------------------------------------------------------------------------------------
+
+    sprintf(topicBuffer, "devices/%s/device/id", configManager->deviceConfig.deviceId);
+    mqttClient.publish(topicBuffer, configManager->deviceConfig.deviceId);
+
+    sprintf(topicBuffer, "devices/%s/device/chip", configManager->deviceConfig.deviceId);
+    mqttClient.publish(topicBuffer, String(configManager->deviceConfig.chipId).c_str());
+
+    sprintf(topicBuffer, "devices/%s/device/address", configManager->deviceConfig.deviceId);
+    mqttClient.publish(topicBuffer, String((const char*)configManager->deviceConfig.rangingId).c_str());
+
+    sprintf(topicBuffer, "devices/%s/device/version", configManager->deviceConfig.deviceId);
+    mqttClient.publish(topicBuffer, VERSION_STRING);
+
+    sprintf(topicBuffer, "devices/%s/device/commit", configManager->deviceConfig.deviceId);
+    mqttClient.publish(topicBuffer, GIT_COMMIT);
 }

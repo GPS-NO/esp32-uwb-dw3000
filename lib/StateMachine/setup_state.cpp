@@ -13,6 +13,13 @@ void SetupState::onEnter()
     }
 
     mqttManager->connect();
+
+    int8_t rangingInitResult = ranging.init(configManager->deviceConfig.rangingId, PIN_IRQ, PIN_RST, PIN_SS);
+    if (rangingInitResult == 0)
+        Serial.println("Ranging system initialized successfully.");
+    else
+        Serial.println("Failed to initialize ranging system.");
+
 }
 
 void SetupState::onUpdate()
@@ -49,16 +56,4 @@ void SetupState::onUpdate()
 void SetupState::onExit()
 {
     //
-}
-
-void SetupState::generateId(char *buffer, int length)
-{
-    const char characters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
-    for (size_t i = 0; i < length - 1; ++i)
-    {
-        buffer[i] = characters[random(sizeof(characters) - 1)];
-    }
-
-    buffer[length - 1] = '\0';
 }

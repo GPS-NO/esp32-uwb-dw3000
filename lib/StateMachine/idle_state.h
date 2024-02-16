@@ -4,7 +4,7 @@
 #include "state_machine_state.h"
 
 class IdleState : public State {
-public:
+   public:
     virtual void onEnter() override;
     virtual void onUpdate() override;
     virtual void onExit() override;

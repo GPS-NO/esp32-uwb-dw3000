@@ -37,8 +37,9 @@ struct DeviceConfig
     WifiConfig wifi;
     MqttConfig mqtt;
     char deviceId[64];
-    char chipId[64];
+    uint32_t chipId;
     char macAddress[64];
+    uint8_t rangingId[4];
 };
 
 class ConfigManager
@@ -47,10 +48,12 @@ private:
     static ConfigManager *instance;
     void copyString(const char *source, char *dest, size_t size);
     void getMacAddress(char *macAddress);
-    void getChipId(char *chipId);
+    void getChipId(uint32_t &chipId);
     ConfigManager();
 
 public:
+    static void generateId(char *buffer, int length);
+    static void chipIDToAddress(uint8_t *buffer, uint32_t id);
     static ConfigManager *getInstance();
 
     static DeviceConfig deviceConfig;

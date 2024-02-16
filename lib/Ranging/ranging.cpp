@@ -6,21 +6,7 @@
  * See NOTE 8 below. */
 extern dwt_txconfig_t txconfig_options;
 
-RangingSystem::RangingSystem(uint8_t oID[4]) {
-    for (int i = 0; i < 17; i = i + 8) {
-        chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
-    }
-
-    randomSeed(chipId);
-    Serial.print("RangingSystem: my generated ID is ");
-    for (int i = 0; i < 4; i++) {
-        // Generate a random character and add it to the result string
-        char randomChar = random('0', 'Z' + 1);
-        myID[i] = randomChar;
-        Serial.print(randomChar);
-    }
-    Serial.println();
-
+RangingSystem::RangingSystem() {
     /* Default communication configuration. We use default non-STS DW mode. */
     config = {
         5,                /* Channel number. */
@@ -38,8 +24,6 @@ RangingSystem::RangingSystem(uint8_t oID[4]) {
         DWT_PDOA_M0       /* PDOA mode off */
     };
 
-    std::copy(oID, oID + sizeof(oID) / sizeof(oID[0]), otherID);
-
     this->reset();
 }
 
@@ -53,7 +37,9 @@ void RangingSystem::printHex(uint8_t num) {
     Serial.print(hexCar);
 }
 
-int8_t RangingSystem::init(int irq, int rst, int ss) {
+int8_t RangingSystem::init(uint8_t mID[4], int irq, int rst, int ss) {
+    std::copy(mID, mID + sizeof(mID) / sizeof(mID[0]), otherID);
+
     spiBegin(irq, rst);
     spiSelect(ss);
 
@@ -98,8 +84,11 @@ int8_t RangingSystem::init(int irq, int rst, int ss) {
     return 0;
 }
 
-int16_t RangingSystem::initiateRanging(uint32_t timeout) {
+int16_t RangingSystem::initiateRanging(uint8_t oID[4], uint32_t timeout) {
     this->reset();
+
+    std::copy(oID, oID + sizeof(oID) / sizeof(oID[0]), otherID);
+
 
     initator_poll_msg[5] = myID[0];
     initator_poll_msg[6] = myID[1];
@@ -209,8 +198,11 @@ int16_t RangingSystem::initiateRanging(uint32_t timeout) {
     return 0;
 }
 
-float RangingSystem::respondToRanging(uint32_t timeout) {
+float RangingSystem::respondToRanging(uint8_t oID[4], uint32_t timeout) {
     this->reset();
+
+    std::copy(oID, oID + sizeof(oID) / sizeof(oID[0]), otherID);
+
     initator_poll_msg[5] = otherID[0];
     initator_poll_msg[6] = otherID[1];
     initator_poll_msg[7] = otherID[2];

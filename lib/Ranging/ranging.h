@@ -84,12 +84,12 @@ class RangingSystem {
     void printHex(uint8_t num);
 
    public:
-    RangingSystem(uint8_t oID[4]);
+    RangingSystem();
     ~RangingSystem();
 
-    int8_t init(int irq, int rst, int ss);
-    int16_t initiateRanging(uint32_t timeout);
-    float respondToRanging(uint32_t timeout);
+    int8_t init(uint8_t mID[4], int irq, int rst, int ss);
+    int16_t initiateRanging(uint8_t oID[4], uint32_t timeout = 10000);
+    float respondToRanging(uint8_t oID[4], uint32_t timeout = 10000);
     void reset();
 };
 #endif

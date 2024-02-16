@@ -4,7 +4,9 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
+
 #include "config_manager.h"
+#include "boarddefines.h"
 
 class MqttManager
 {

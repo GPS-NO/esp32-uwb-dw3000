@@ -1,4 +1,5 @@
 #include "config_manager.h"
+
 #include <FS.h>
 #include <SPIFFS.h>
 #include <esp_system.h>
@@ -8,10 +9,8 @@ DeviceConfig ConfigManager::deviceConfig;
 
 ConfigManager::ConfigManager() {}
 
-ConfigManager *ConfigManager::getInstance()
-{
-    if (instance == NULL)
-    {
+ConfigManager *ConfigManager::getInstance() {
+    if (instance == NULL) {
         instance = new ConfigManager();
         instance->loadConfig();
     }
@@ -19,27 +18,23 @@ ConfigManager *ConfigManager::getInstance()
     return instance;
 }
 
-ConfigError ConfigManager::loadConfig()
-{
+ConfigError ConfigManager::loadConfig() {
     String configFile = "/device.json";
 
-    if (!SPIFFS.begin(true))
-    {
+    if (!SPIFFS.begin(true)) {
         Serial.println("Error initializing the file system!");
         return FORMATTING_ERROR;
     }
 
     File file = SPIFFS.open(configFile, "r");
-    if (!file)
-    {
+    if (!file) {
         Serial.println("Error opening the configuration file!");
         SPIFFS.end();
         return FILE_OPEN_ERROR;
     }
 
     size_t fileSize = file.size();
-    if (fileSize == 0)
-    {
+    if (fileSize == 0) {
         Serial.println("The configuration file is empty!");
         file.close();
         SPIFFS.end();
@@ -51,8 +46,7 @@ ConfigError ConfigManager::loadConfig()
 
     file.close();
 
-    if (error)
-    {
+    if (error) {
         Serial.print("Error deserializing the configuration file: ");
         Serial.println(error.c_str());
         return DESERIALIZATION_ERROR;
@@ -76,43 +70,42 @@ ConfigError ConfigManager::loadConfig()
     // instance->getMacAddress(deviceConfig.macAddress);
     // instance->copyString(doc["macAddress"].as<const char *>(), deviceConfig.macAddress, sizeof(deviceConfig.macAddress));
 
-    // instance->getChipId(deviceConfig.chipId);
-    // instance->copyString(doc["chipId"].as<const char *>(), deviceConfig.chipId, sizeof(deviceConfig.chipId));
+    instance->getChipId(deviceConfig.chipId);
+
+    // Deterministic 4-Byte ID using ASCII 0-Z used for ranging addressing
+    ConfigManager::chipIDToAddress(deviceConfig.rangingId, deviceConfig.chipId);
+    // if no device id is given (required for MQTT) ID is generated
+    if (strlen(deviceConfig.deviceId) == 0) ConfigManager::generateId(deviceConfig.deviceId, 32);
+    randomSeed(millis());  // reset to a pseudo random seed
 
     return CONFIG_OK;
 }
 
-void ConfigManager::copyString(const char *source, char *dest, size_t size)
-{
+void ConfigManager::copyString(const char *source, char *dest, size_t size) {
     strncpy(dest, source, size);
     dest[size - 1] = '\0';
 }
 
-void ConfigManager::getMacAddress(char *macAddress)
-{
+void ConfigManager::getMacAddress(char *macAddress) {
     uint8_t mac[6];
     esp_err_t macReadStatus = esp_read_mac(mac, ESP_MAC_WIFI_STA);
 
-    if (macReadStatus == ESP_OK)
-    {
+    if (macReadStatus == ESP_OK) {
         snprintf(macAddress, 18, "%02X:%02X:%02X:%02X:%02X:%02X",
                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    }
-    else
-    {
+    } else {
         const char *defaultMac = "00:00:00:00:00:00";
         strncpy(macAddress, defaultMac, 18);
     }
 }
 
-void ConfigManager::getChipId(char *chipId)
-{
-    uint32_t chipIdValue = 0;
-    for (int i = 0; i < 17; i = i + 8)
-    {
-        chipIdValue |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
+void ConfigManager::getChipId(uint32_t &chipId) {
+    chipId = 0;
+    for (int i = 0; i < 17; i = i + 8) {
+        chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
     }
 
+    /*
     if (chipIdValue == 0)
     {
         snprintf(chipId, 9, "%08X", 0x00000000);
@@ -121,34 +114,49 @@ void ConfigManager::getChipId(char *chipId)
     {
         snprintf(chipId, 9, "%08X", chipIdValue);
     }
+    */
 }
 
-char *ConfigManager::hidePartialPassword(const char *password)
-{
+char *ConfigManager::hidePartialPassword(const char *password) {
     const size_t visibleChars = 3;
     size_t len = strlen(password);
     char *hiddenPassword = new char[len + 1];
 
-    if (len > visibleChars)
-    {
-        for (size_t i = 0; i < len; ++i)
-        {
-            if (i < visibleChars)
-            {
+    if (len > visibleChars) {
+        for (size_t i = 0; i < len; ++i) {
+            if (i < visibleChars) {
                 hiddenPassword[i] = password[i];
-            }
-            else
-            {
+            } else {
                 hiddenPassword[i] = '*';
             }
         }
-    }
-    else
-    {
+    } else {
         strncpy(hiddenPassword, password, len);
     }
 
     hiddenPassword[len] = '\0';
 
     return hiddenPassword;
+}
+
+void ConfigManager::generateId(char *buffer, int length) {
+    const char characters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+    for (size_t i = 0; i < length - 1; ++i) {
+        buffer[i] = characters[random(sizeof(characters) - 1)];
+    }
+
+    buffer[length - 1] = '\0';
+}
+
+void ConfigManager::chipIDToAddress(uint8_t *buffer, uint32_t id) {
+    const char characters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-+*!.$%&#";
+
+    for (int8_t i = 0; i < 4; ++i) {
+        // Extract the lower 8 bits to use as an index into the characters array
+        uint32_t index = (id & 0xFF) % (sizeof(characters) / sizeof(characters[0]));
+        buffer[i] = characters[index];
+        // Shift the value to the right by 8 bits for the next iteration
+        id >>= 8;
+    }
 }
