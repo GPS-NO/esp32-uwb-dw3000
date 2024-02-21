@@ -62,7 +62,6 @@ class RangingSystem {
     RangingSystem();
     ~RangingSystem();
 
-
     uint32_t chipId = 0;
 
     uint8_t initator_poll_msg[12];

@@ -3,12 +3,14 @@
 
 #include "idle_state.h"
 #include "setup_state.h"
+#include "ranging_state.h"
 #include "state_machine_state.h"
 
 const int flashBtnPin = 0;
 
 State* StateMachineState::idleState = new IdleState();
 State* StateMachineState::setupState = new SetupState();
+State* StateMachineState::rangingState = new RangingState();
 State* StateMachineState::currentState = StateMachineState::idleState;
 
 void setup() {

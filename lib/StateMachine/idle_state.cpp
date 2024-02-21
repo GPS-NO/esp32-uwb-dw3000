@@ -1,4 +1,5 @@
 #include "idle_state.h"
+
 #include <Arduino.h>
 
 void IdleState::onEnter() {
@@ -11,18 +12,20 @@ void IdleState::onUpdate() {
     Serial.println("2: Wechsel in State: Error");
     Serial.println("================================");
 
-    while(1){
+    while (1) {
         if (Serial.available() > 0) {
             int serialInput = Serial.parseInt();
 
-            switch(serialInput) {
-                case 1:
+            switch (serialInput) {
+                case 1: {
                     StateMachineState::currentState = StateMachineState::setupState;
                     IdleState::onExit();
-                    return;;
-                case 2:
+                    return;
+                }
+                case 2: {
                     Serial.println("Dieser State existiert noch nicht!");
                     break;
+                }
                 default:
                     Serial.println("Ungültige Kombination.");
                     break;

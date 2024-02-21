@@ -48,7 +48,7 @@ void RangingSystem::printHex(uint8_t num) {
 }
 
 int8_t RangingSystem::init(uint8_t mID[4], int irq, int rst, int ss) {
-    std::copy(mID, mID + sizeof(mID) / sizeof(mID[0]), otherID);
+    std::copy(mID, mID + 4, otherID);
 
     spiBegin(irq, rst);
     spiSelect(ss);
@@ -97,7 +97,7 @@ int8_t RangingSystem::init(uint8_t mID[4], int irq, int rst, int ss) {
 int16_t RangingSystem::initiateRanging(uint8_t oID[4], uint32_t timeout) {
     this->reset();
 
-    std::copy(oID, oID + sizeof(oID) / sizeof(oID[0]), otherID);
+    std::copy(oID, oID + 4, otherID);
 
     initator_poll_msg[5] = myID[0];
     initator_poll_msg[6] = myID[1];
@@ -210,7 +210,7 @@ int16_t RangingSystem::initiateRanging(uint8_t oID[4], uint32_t timeout) {
 float RangingSystem::respondToRanging(uint8_t oID[4], uint32_t timeout) {
     this->reset();
 
-    std::copy(oID, oID + sizeof(oID) / sizeof(oID[0]), otherID);
+    std::copy(oID, oID + 4, otherID);
 
     initator_poll_msg[5] = otherID[0];
     initator_poll_msg[6] = otherID[1];

@@ -15,6 +15,7 @@ public:
     static State* currentState;
     static State* idleState;
     static State* setupState;
+    static State* rangingState;
 };
 
 
