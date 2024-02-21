@@ -56,43 +56,43 @@
 #define RX_BUF_LEN 32
 
 class RangingSystem {
-   private:
-    static RangingSystem *instance;
+private:
+  static RangingSystem *instance;
 
-    RangingSystem();
-    ~RangingSystem();
+  RangingSystem();
+  ~RangingSystem();
 
-    uint32_t chipId = 0;
+  uint32_t chipId = 0;
 
-    uint8_t initator_poll_msg[12];
-    uint8_t responder_msg[15];
-    uint8_t initator_final_msg[24];
+  uint8_t initator_poll_msg[12];
+  uint8_t responder_msg[15];
+  uint8_t initator_final_msg[24];
 
-    uint8_t myID[4];
-    uint8_t otherID[4];
+  uint8_t myID[4];
+  uint8_t otherID[4];
 
-    uint8_t frame_seq_nb;
-    uint8_t rx_buffer[RX_BUF_LEN];
-    uint32_t status_reg;
+  uint8_t frame_seq_nb;
+  uint8_t rx_buffer[RX_BUF_LEN];
+  uint32_t status_reg;
 
-    uint64_t poll_ts;
-    uint64_t resp_ts;
-    uint64_t final_ts;
+  uint64_t poll_ts;
+  uint64_t resp_ts;
+  uint64_t final_ts;
 
-    double tof;
-    double distance;
+  double tof;
+  double distance;
 
-    unsigned long timeout_started;
+  unsigned long timeout_started;
 
-    dwt_config_t config;
+  dwt_config_t config;
 
-    void printHex(uint8_t num);
+  void printHex(uint8_t num);
 
-   public:
-    static RangingSystem *getInstance();
-    int8_t init(uint8_t mID[4], int irq, int rst, int ss);
-    int16_t initiateRanging(uint8_t oID[4], uint32_t timeout = 10000);
-    float respondToRanging(uint8_t oID[4], uint32_t timeout = 10000);
-    void reset();
+public:
+  static RangingSystem *getInstance();
+  int8_t init(uint8_t mID[4], int irq, int rst, int ss);
+  int16_t initiateRanging(uint8_t oID[4], uint32_t timeout = 10000);
+  float respondToRanging(uint8_t oID[4], uint32_t timeout = 10000);
+  void reset();
 };
 #endif

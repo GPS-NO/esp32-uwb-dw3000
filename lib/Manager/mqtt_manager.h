@@ -8,29 +8,28 @@
 #include "config_manager.h"
 #include "boarddefines.h"
 
-class MqttManager
-{
+class MqttManager {
 private:
-    static MqttManager *instance;
-    WiFiClient wifiClient;
-    PubSubClient mqttClient;
+  static MqttManager *instance;
+  WiFiClient wifiClient;
+  PubSubClient mqttClient;
 
-    MqttManager();
+  MqttManager();
 
 public:
-    static MqttManager *getInstance();
+  static MqttManager *getInstance();
 
-    void publish(const char *topic, const char *payload);
-    void subscribe(const char *topic);
-    void connect();
-    void setupWifi(const char *ssid, const char *password, int maxAttempts, int attemptDelay);
-    void registerDevice();
-    bool messageReceived();
-    String getMessageTopic();
-    String getMessagePayload();
+  void publish(const char *topic, const char *payload);
+  void subscribe(const char *topic);
+  void connect();
+  void setupWifi(const char *ssid, const char *password, int maxAttempts, int attemptDelay);
+  void registerDevice();
+  bool messageReceived();
+  String getMessageTopic();
+  String getMessagePayload();
 
 protected:
-    ConfigManager *configManager;
+  ConfigManager *configManager;
 };
 
 #endif

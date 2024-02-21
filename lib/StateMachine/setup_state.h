@@ -12,18 +12,18 @@
 #include "state_machine_state.h"
 
 class SetupState : public State {
-   public:
-    virtual void onEnter() override;
-    virtual void onUpdate() override;
-    virtual void onExit() override;
+public:
+  virtual void onEnter() override;
+  virtual void onUpdate() override;
+  virtual void onExit() override;
 
-   private:
-    void connectToWiFi(const char *ssid, const char *password);
+private:
+  void connectToWiFi(const char *ssid, const char *password);
 
-   protected:
-    ConfigManager *configManager;
-    MqttManager *mqttManager;
-    RangingSystem *ranging;
+protected:
+  ConfigManager *configManager;
+  MqttManager *mqttManager;
+  RangingSystem *ranging;
 };
 
 #endif

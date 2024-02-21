@@ -14,23 +14,22 @@ State* StateMachineState::rangingState = new RangingState();
 State* StateMachineState::currentState = StateMachineState::idleState;
 
 void setup() {
-    Serial.begin(115200);
-    while (!Serial) {
-        ;
-    }
+  Serial.begin(115200);
+  while (!Serial)
+    ;
 
-    pinMode(flashBtnPin, INPUT_PULLUP);
+  pinMode(flashBtnPin, INPUT_PULLUP);
 
-    Serial.println(F("###################################################"));
-    Serial.println(F("(c) 2023-2024 Hochschule Bochum GPS:NO - Martin Peth, Niklas Schuetrumpf"));
-    Serial.print(F("Compiled with c++ version "));
-    Serial.println(__VERSION__);
-    Serial.printf("Version v%s @%s %s at %s", VERSION_STRING, GIT_COMMIT, __DATE__, __TIME__);
-    Serial.println();
-    Serial.println(F("###################################################"));
+  Serial.println(F("###################################################"));
+  Serial.println(F("(c) 2023-2024 Hochschule Bochum GPS:NO - Martin Peth, Niklas Schuetrumpf"));
+  Serial.print(F("Compiled with c++ version "));
+  Serial.println(__VERSION__);
+  Serial.printf("Version v%s @%s %s at %s", VERSION_STRING, GIT_COMMIT, __DATE__, __TIME__);
+  Serial.println();
+  Serial.println(F("###################################################"));
 }
 
 void loop() {
-    StateMachineState::currentState->onEnter();
-    StateMachineState::currentState->onUpdate();
+  StateMachineState::currentState->onEnter();
+  StateMachineState::currentState->onUpdate();
 }

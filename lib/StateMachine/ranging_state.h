@@ -7,14 +7,14 @@
 #include "state_machine_state.h"
 
 class RangingState : public State {
-   public:
-    virtual void onEnter() override;
-    virtual void onUpdate() override;
-    virtual void onExit() override;
+public:
+  virtual void onEnter() override;
+  virtual void onUpdate() override;
+  virtual void onExit() override;
 
-   private:
-   protected:
-    RangingSystem *ranging;
+private:
+protected:
+  RangingSystem *ranging;
 };
 
 #endif

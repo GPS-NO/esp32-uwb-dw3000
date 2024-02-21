@@ -3,20 +3,19 @@
 
 class State {
 public:
-    virtual void onEnter() = 0;
-    virtual void onUpdate() = 0;
-    virtual void onExit() = 0;
-    virtual ~State() {}
-    
+  virtual void onEnter() = 0;
+  virtual void onUpdate() = 0;
+  virtual void onExit() = 0;
+  virtual ~State() {}
 };
 
 class StateMachineState {
 public:
-    static State* currentState;
-    static State* idleState;
-    static State* setupState;
-    static State* rangingState;
+  static State* currentState;
+  static State* idleState;
+  static State* setupState;
+  static State* rangingState;
 };
 
 
-#endif // STATE_MACHINE_STATE_H
+#endif  // STATE_MACHINE_STATE_H
