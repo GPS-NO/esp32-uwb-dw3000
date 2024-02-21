@@ -6,6 +6,16 @@
  * See NOTE 8 below. */
 extern dwt_txconfig_t txconfig_options;
 
+RangingSystem *RangingSystem::instance = nullptr;
+
+RangingSystem *RangingSystem::getInstance() {
+    if (instance == NULL) {
+        instance = new RangingSystem();
+    }
+
+    return instance;
+}
+
 RangingSystem::RangingSystem() {
     /* Default communication configuration. We use default non-STS DW mode. */
     config = {
@@ -88,7 +98,6 @@ int16_t RangingSystem::initiateRanging(uint8_t oID[4], uint32_t timeout) {
     this->reset();
 
     std::copy(oID, oID + sizeof(oID) / sizeof(oID[0]), otherID);
-
 
     initator_poll_msg[5] = myID[0];
     initator_poll_msg[6] = myID[1];

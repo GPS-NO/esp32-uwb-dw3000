@@ -23,7 +23,7 @@ class SetupState : public State {
    protected:
     ConfigManager *configManager;
     MqttManager *mqttManager;
-    RangingSystem ranging;
+    RangingSystem *ranging;
 };
 
 #endif

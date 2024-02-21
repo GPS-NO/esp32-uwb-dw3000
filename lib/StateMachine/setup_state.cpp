@@ -5,6 +5,7 @@ void SetupState::onEnter()
     Serial.println("[*] Enter State: Setup");
     configManager = ConfigManager::getInstance();
     mqttManager = MqttManager::getInstance();
+    ranging = RangingSystem::getInstance();
 
     if (strlen(configManager->deviceConfig.wifi.ssid) == 0 || strlen(configManager->deviceConfig.wifi.password) == 0)
     {
@@ -14,7 +15,7 @@ void SetupState::onEnter()
 
     mqttManager->connect();
 
-    int8_t rangingInitResult = ranging.init(configManager->deviceConfig.rangingId, PIN_IRQ, PIN_RST, PIN_SS);
+    int8_t rangingInitResult = ranging->init(configManager->deviceConfig.rangingId, PIN_IRQ, PIN_RST, PIN_SS);
     if (rangingInitResult == 0)
         Serial.println("Ranging system initialized successfully.");
     else
