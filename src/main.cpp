@@ -1,12 +1,12 @@
 #include <Arduino.h>
 #include <Wire.h>
 
+#include "boarddefines.h"
 #include "idle_state.h"
 #include "setup_state.h"
 #include "ranging_state.h"
 #include "state_machine_state.h"
 
-const int flashBtnPin = 0;
 
 State* StateMachineState::idleState = new IdleState();
 State* StateMachineState::setupState = new SetupState();
@@ -18,7 +18,7 @@ void setup() {
   while (!Serial)
     ;
 
-  pinMode(flashBtnPin, INPUT_PULLUP);
+  pinMode(PIN_BTN, INPUT_PULLUP);
 
   Serial.println(F("###################################################"));
   Serial.println(F("(c) 2023-2024 Hochschule Bochum GPS:NO - Martin Peth, Niklas Schuetrumpf"));

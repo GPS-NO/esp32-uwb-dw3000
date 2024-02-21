@@ -14,3 +14,5 @@
 #define PIN_RST 27
 #define PIN_IRQ 34
 #define PIN_SS 4
+
+#define PIN_BTN GPIO_NUM_0
