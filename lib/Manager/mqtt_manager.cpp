@@ -46,12 +46,41 @@ void MqttManager::publish(const char *topic, const char *payload) {
   mqttClient.publish(topic, payload);
 }
 
-void MqttManager::subscribe(const char *topic) {
+void MqttManager::subscribe(const char *topic, std::function<void(const char *payload)> callback) {
   if (!mqttClient.connected()) {
     // connect();
   }
 
   mqttClient.subscribe(topic);
+  subscriptions.push_back({ topic, callback });
+}
+
+void MqttManager::unsubscribe(const char *topic) {
+  mqttClient.unsubscribe(topic);
+
+  for (auto it = subscriptions.begin(); it != subscriptions.end(); ++it) {
+    if (strcmp(it->topic, topic) == 0) {
+      subscriptions.erase(it);
+      break;
+    }
+  }
+}
+
+void MqttManager::processMessage(const char *topic, byte *payload, unsigned int length) {
+  payload[length] = '\0';
+
+  const char *payloadStr = reinterpret_cast<const char *>(payload);
+  Serial.print("Received new message in topic: ");
+  Serial.print(topic);
+  Serial.print(" with payload: ");
+  Serial.println(payloadStr);
+
+  for (const MqttSubscription &sub : MqttManager::getInstance()->subscriptions) {
+    if (strcmp(sub.topic, topic) == 0) {
+      sub.callback(payloadStr);
+      break;
+    }
+  }
 }
 
 bool MqttManager::messageReceived() {
@@ -87,6 +116,7 @@ void MqttManager::connect() {
 
   mqttClient.setServer(host, port);
   mqttClient.connect(configManager->deviceConfig.deviceId, username, password);
+  mqttClient.setCallback(MqttManager::processMessage);
 
   char topicBuffer[64];
   sprintf(topicBuffer, "devices/%s/heartbeat", configManager->deviceConfig.deviceId);
@@ -142,4 +172,8 @@ void MqttManager::registerDevice() {
 
   sprintf(topicBuffer, "devices/%s/device/commit", configManager->deviceConfig.deviceId);
   mqttClient.publish(topicBuffer, GIT_COMMIT);
+}
+
+void MqttManager::loop() {
+  mqttClient.loop();
 }

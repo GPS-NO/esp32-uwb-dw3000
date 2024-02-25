@@ -13,6 +13,10 @@ void SetupState::onEnter() {
 
   mqttManager->connect();
 
+  mqttManager->subscribe("gpsno/test", [](const char *payload) {
+    Serial.println("(SETUP_STATE): " + String(payload));
+  });
+
   int8_t rangingInitResult = ranging->init(configManager->deviceConfig.rangingId, PIN_IRQ, PIN_RST, PIN_SS);
   if (rangingInitResult == 0)
     Serial.println("Ranging system initialized successfully.");
@@ -55,6 +59,7 @@ void SetupState::onUpdate() {
       }
     }
 
+    mqttManager->loop();
     delay(100);
   }
 }

@@ -1,5 +1,6 @@
 out
 .idea/
+.docker/
 **/c_cpp_properties.json
 .pio
 .pioenvs
