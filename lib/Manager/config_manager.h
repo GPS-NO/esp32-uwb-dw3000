@@ -52,7 +52,7 @@ public:
   static void chipIDToAddress(uint8_t *buffer, uint32_t id);
   static void generateDeviceID(char *buffer, uint32_t id);
   static ConfigManager *getInstance();
-  void destroy();
+  static void destroy();
 
   static DeviceConfig deviceConfig;
   static ConfigError loadConfig();

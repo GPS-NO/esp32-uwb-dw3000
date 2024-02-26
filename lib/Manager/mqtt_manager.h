@@ -44,7 +44,7 @@ public:
   bool isWifiConnected();
   bool isConfigAvailable();
   void loop();
-  void destroy();
+  static void destroy();
   void sendHeartbeat();
   String getMessageTopic();
   String getMessagePayload();

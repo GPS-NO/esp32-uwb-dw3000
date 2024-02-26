@@ -18,6 +18,10 @@ MqttManager *MqttManager::getInstance() {
 }
 
 MqttManager::~MqttManager() {
+  destroy();
+}
+
+void MqttManager::destroy() {
   if (instance != nullptr) {
     delete instance;
     instance = nullptr;
