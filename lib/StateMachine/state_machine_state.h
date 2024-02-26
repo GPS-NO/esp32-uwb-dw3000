@@ -15,6 +15,8 @@ public:
   static State* idleState;
   static State* setupState;
   static State* actionState;
+  static State* errorState;
+  static State* shutdownState;
 };
 
 
