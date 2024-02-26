@@ -4,6 +4,7 @@
 #include <Arduino.h>
 
 #include "ranging.h"
+#include "mqtt_manager.h"
 #include "state_machine_state.h"
 
 class RangingState : public State {
@@ -14,6 +15,7 @@ public:
 
 private:
 protected:
+  MqttManager *mqttManager;
   RangingSystem *ranging;
 };
 
