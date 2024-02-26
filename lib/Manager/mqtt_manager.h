@@ -39,6 +39,7 @@ public:
   void loop();
   String getMessageTopic();
   String getMessagePayload();
+  char *getBaseTopic();
 
 protected:
   ConfigManager *configManager;
