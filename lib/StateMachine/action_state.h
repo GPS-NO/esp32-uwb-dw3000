@@ -1,5 +1,5 @@
-#ifndef RANGING_STATE_H
-#define RANGING_STATE_H
+#ifndef ACTION_STATE_H
+#define ACTION_STATE_H
 
 #include <Arduino.h>
 
@@ -7,13 +7,15 @@
 #include "mqtt_manager.h"
 #include "state_machine_state.h"
 
-class RangingState : public State {
+class ActionState : public State {
 public:
   virtual void onEnter() override;
   virtual void onUpdate() override;
   virtual void onExit() override;
 
 private:
+  unsigned long lastHeartbeat;
+
 protected:
   MqttManager *mqttManager;
   RangingSystem *ranging;

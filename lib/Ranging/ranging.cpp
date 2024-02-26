@@ -38,7 +38,14 @@ RangingSystem::RangingSystem() {
 }
 
 RangingSystem::~RangingSystem() {
-  // Cleanup or release resources if needed
+  this->destroy();
+}
+
+void RangingSystem::destroy() {
+  if (instance != nullptr) {
+    delete instance;
+    instance = nullptr;
+  }
 }
 
 void RangingSystem::printHex(uint8_t num) {

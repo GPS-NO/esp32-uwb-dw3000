@@ -9,6 +9,13 @@ DeviceConfig ConfigManager::deviceConfig;
 
 ConfigManager::ConfigManager() {}
 
+ConfigManager::~ConfigManager() {
+  if (instance != nullptr) {
+    delete instance;
+    instance = nullptr;
+  }
+}
+
 ConfigManager *ConfigManager::getInstance() {
   if (instance == NULL) {
     instance = new ConfigManager();

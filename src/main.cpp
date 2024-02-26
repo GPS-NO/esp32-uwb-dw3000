@@ -4,13 +4,13 @@
 #include "boarddefines.h"
 #include "idle_state.h"
 #include "setup_state.h"
-#include "ranging_state.h"
+#include "action_state.h"
 #include "state_machine_state.h"
 
 
 State* StateMachineState::idleState = new IdleState();
 State* StateMachineState::setupState = new SetupState();
-State* StateMachineState::rangingState = new RangingState();
+State* StateMachineState::actionState = new ActionState();
 State* StateMachineState::currentState = StateMachineState::idleState;
 
 void setup() {

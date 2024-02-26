@@ -2,76 +2,53 @@
 
 void SetupState::onEnter() {
   Serial.println("[*] Enter State: Setup");
+
   configManager = ConfigManager::getInstance();
   mqttManager = MqttManager::getInstance();
   ranging = RangingSystem::getInstance();
 
-  if (strlen(configManager->deviceConfig.wifi.ssid) == 0 || strlen(configManager->deviceConfig.wifi.password) == 0) {
-    Serial.println("No WiFi credentials found.");
-    return;
+  if (!mqttManager->isConfigAvailable()) {
+    Serial.println("[*] No configuration found. Entering configuration mode.");
+    delay(2500);
+    this->onEnter();
+    //Welche Routine müsste man umsetzen, falls keine Config existiert?
   }
 
   mqttManager->connect();
 
-  char topicBuffer[128];
-  sprintf(topicBuffer, "%s/ranging/+/+", mqttManager->getBaseTopic().c_str());
-  mqttManager->subscribe(topicBuffer, [](const char *topic, const char *payload) {
-    Serial.println("(SETUP_STATE): " + String(payload));
-    String receivedTopic = String(topic);
-    size_t baseTopicLength = (MqttManager::getInstance()->getBaseTopic() + "/ranging").length();
-    receivedTopic.remove(0, baseTopicLength + 1);
-
-    String otherID = receivedTopic.substring(0, 4);
-    String rangingType = receivedTopic.substring(5);
-
-    Serial.println("(SETUP_STATE): " + receivedTopic + " " + rangingType + " " + otherID);
-  });
-
-  int8_t rangingInitResult = ranging->init(configManager->deviceConfig.rangingId, PIN_IRQ, PIN_RST, PIN_SS);
-  if (rangingInitResult == 0)
-    Serial.println("Ranging system initialized successfully.");
-  else
-    Serial.println("Failed to initialize ranging system.");
+  rangingInitResult = ranging->init(configManager->deviceConfig.rangingId, PIN_IRQ, PIN_RST, PIN_SS);
 }
 
 void SetupState::onUpdate() {
-  Serial.println("================================");
-  Serial.println("1: Wechsel in State: Error");
-  Serial.println("2: Wechsel in State: Register Device");
-  Serial.println("2: Wechsel in State: Ranging State");
-  Serial.println("================================");
-
-  while (1) {
-    if (Serial.available() > 0) {
-      int serialInput = Serial.parseInt();
-
-      switch (serialInput) {
-        case 1:
-          {
-            Serial.println("Dieser State existiert noch nicht!");
-            break;
-          }
-        case 2:
-          {
-            mqttManager->publish("Test", "Hello World!");
-            mqttManager->registerDevice();
-            break;
-          }
-        case 3:
-          {
-            StateMachineState::currentState = StateMachineState::rangingState;
-            SetupState::onExit();
-            return;
-          }
-        default:
-          Serial.println("Ungültige Kombination.");
-          break;
-      }
-    }
-
+  if (healthCheck()) {
+    mqttManager->registerDevice();
     mqttManager->loop();
-    delay(100);
+
+    StateMachineState::currentState = StateMachineState::actionState;
+    SetupState::onExit();
+    return;
   }
+  delay(2500);
+  //Should it step back to the initial state if the health check fails?
+}
+
+bool SetupState::healthCheck() {
+  if (!mqttManager->isWifiConnected()) {
+    Serial.println("[ERROR] WiFi connection is not established.");
+    return false;
+  }
+
+  if (!mqttManager->isConnected()) {
+    Serial.println("[ERROR] MQTT connection is not established.");
+    return false;
+  }
+
+  if (rangingInitResult != 0) {
+    Serial.println("[ERROR] Failed to initialize ranging system.");
+    return false;
+  }
+
+  return true;
 }
 
 void SetupState::onExit() {

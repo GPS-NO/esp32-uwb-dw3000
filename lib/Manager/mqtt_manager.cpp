@@ -17,6 +17,13 @@ MqttManager *MqttManager::getInstance() {
   return instance;
 }
 
+MqttManager::~MqttManager() {
+  if (instance != nullptr) {
+    delete instance;
+    instance = nullptr;
+  }
+}
+
 void MqttManager::setupWifi(const char *ssid, const char *password, int maxAttempts, int attemptDelay) {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
@@ -90,6 +97,10 @@ void MqttManager::processMessage(const char *topic, byte *payload, unsigned int 
   }
 }
 
+bool MqttManager::isConfigAvailable() {
+  return true;
+}
+
 bool MqttManager::messageReceived() {
   // mqttClient.loop();
   return true;
@@ -131,11 +142,16 @@ void MqttManager::connect() {
   mqttClient.connect(configManager->deviceConfig.deviceId, username, password);
   mqttClient.setCallback(MqttManager::processMessage);
 
-  char topicBuffer[64];
-  sprintf(topicBuffer, "%s/heartbeat", this->getBaseTopic().c_str());
-  mqttClient.publish(topicBuffer, String(millis()).c_str());
-
+  this->sendHeartbeat();
   this->registerDevice();
+}
+
+bool MqttManager::isConnected() {
+  return this->mqttClient.connected();
+}
+
+bool MqttManager::isWifiConnected() {
+  return WiFi.status() == WL_CONNECTED;
 }
 
 void MqttManager::registerDevice() {
@@ -185,6 +201,12 @@ void MqttManager::registerDevice() {
 
   sprintf(topicBuffer, "%s/device/commit", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, GIT_COMMIT);
+}
+
+void MqttManager::sendHeartbeat() {
+  char topicBuffer[64];
+  sprintf(topicBuffer, "%s/heartbeat", this->getBaseTopic().c_str());
+  mqttClient.publish(topicBuffer, String(millis()).c_str());
 }
 
 void MqttManager::loop() {

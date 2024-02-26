@@ -1,12 +1,35 @@
-#include "ranging_state.h"
+#include "action_state.h"
 
-void RangingState::onEnter() {
-  Serial.println("[*] Enter State: Idle");
+void ActionState::onEnter() {
+  Serial.println("[*] Enter State: Action");
+
   mqttManager = MqttManager::getInstance();
   ranging = RangingSystem::getInstance();
+
+  lastHeartbeat = 0;
+
+  char topicBuffer[128];
+  sprintf(topicBuffer, "%s/ranging/+/+", mqttManager->getBaseTopic().c_str());
+  mqttManager->subscribe(topicBuffer, [](const char *topic, const char *payload) {
+    Serial.println("(SETUP_STATE): " + String(payload));
+    String receivedTopic = String(topic);
+    size_t baseTopicLength = (MqttManager::getInstance()->getBaseTopic() + "/ranging").length();
+    receivedTopic.remove(0, baseTopicLength + 1);
+
+    String otherID = receivedTopic.substring(0, 4);
+    String rangingType = receivedTopic.substring(5);
+
+    Serial.println("(SETUP_STATE): " + receivedTopic + " " + rangingType + " " + otherID);
+
+    if (rangingType.equalsIgnoreCase("init")) {
+      // 1
+    } else if (rangingType.equalsIgnoreCase("ranging")) {
+      // 2
+    }
+  });
 }
 
-void RangingState::onUpdate() {
+void ActionState::onUpdate() {
   Serial.println("================================");
   Serial.println("1: Wechsel in State: Initator");
   Serial.println("2: Wechsel in State: Ranger");
@@ -36,7 +59,7 @@ void RangingState::onUpdate() {
               mqttManager->publish(topicBuffer, String(timeout).c_str());
             }
             StateMachineState::currentState = StateMachineState::setupState;
-            RangingState::onExit();
+            ActionState::onExit();
             return;
           }
         case 2:
@@ -55,7 +78,7 @@ void RangingState::onUpdate() {
               mqttManager->publish(topicBuffer, String(timeout).c_str());
             }
             StateMachineState::currentState = StateMachineState::setupState;
-            RangingState::onExit();
+            ActionState::onExit();
             return;
           }
         case 3:
@@ -66,10 +89,19 @@ void RangingState::onUpdate() {
           break;
       }
     }
+
+    // LOOP
+    // if x/y ÄNDER
+    if (millis() - lastHeartbeat >= 30 * 1000) {
+      mqttManager->sendHeartbeat();
+      lastHeartbeat = millis();
+    }
+
+    mqttManager->loop();
     delay(100);
   }
 }
 
-void RangingState::onExit() {
+void ActionState::onExit() {
   mqttManager->unsubscribeAll();
 }

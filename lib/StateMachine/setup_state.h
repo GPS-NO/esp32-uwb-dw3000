@@ -18,7 +18,10 @@ public:
   virtual void onExit() override;
 
 private:
+  int8_t rangingInitResult;
+
   void connectToWiFi(const char *ssid, const char *password);
+  bool healthCheck();
 
 protected:
   ConfigManager *configManager;

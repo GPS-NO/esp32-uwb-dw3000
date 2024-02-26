@@ -94,5 +94,6 @@ public:
   int16_t initiateRanging(uint8_t oID[4], uint32_t timeout = 10000);
   float respondToRanging(uint8_t oID[4], uint32_t timeout = 10000);
   void reset();
+  void destroy();
 };
 #endif

@@ -47,10 +47,12 @@ private:
   ConfigManager();
 
 public:
+  ~ConfigManager();
   static void generateId(char *buffer, int length);
   static void chipIDToAddress(uint8_t *buffer, uint32_t id);
   static void generateDeviceID(char *buffer, uint32_t id);
   static ConfigManager *getInstance();
+  void destroy();
 
   static DeviceConfig deviceConfig;
   static ConfigError loadConfig();
