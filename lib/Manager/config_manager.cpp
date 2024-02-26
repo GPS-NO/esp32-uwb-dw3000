@@ -75,7 +75,7 @@ ConfigError ConfigManager::loadConfig() {
   // Deterministic 4-Byte ID using ASCII 0-Z used for ranging addressing
   ConfigManager::chipIDToAddress(deviceConfig.rangingId, deviceConfig.chipId);
   // if no device id is given (required for MQTT) ID is generated
-  if (strlen(deviceConfig.deviceId) == 0) ConfigManager::generateId(deviceConfig.deviceId, 32);
+  if (strlen(deviceConfig.deviceId) == 0) ConfigManager::generateDeviceID(deviceConfig.deviceId, deviceConfig.chipId);
   randomSeed(millis());  // reset to a pseudo random seed
 
   return CONFIG_OK;
@@ -158,5 +158,17 @@ void ConfigManager::chipIDToAddress(uint8_t *buffer, uint32_t id) {
     buffer[i] = characters[index];
     // Shift the value to the right by 8 bits for the next iteration
     id >>= 8;
+  }
+}
+
+void ConfigManager::generateDeviceID(char *buffer, uint32_t id) {
+  const char allowedChars[] = "abcdefghijklmnopqrstuvwxyz0123456789";
+  const int allowedCharsCount = sizeof(allowedChars) - 1;
+  const int idLength = 8;
+
+  for (int i = 0; i < idLength; ++i) {
+    uint32_t index = id % allowedCharsCount;
+    buffer[i] = allowedChars[index];
+    id /= allowedCharsCount;
   }
 }

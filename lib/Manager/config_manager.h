@@ -49,6 +49,7 @@ private:
 public:
   static void generateId(char *buffer, int length);
   static void chipIDToAddress(uint8_t *buffer, uint32_t id);
+  static void generateDeviceID(char *buffer, uint32_t id);
   static ConfigManager *getInstance();
 
   static DeviceConfig deviceConfig;
