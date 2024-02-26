@@ -98,6 +98,8 @@ int8_t RangingSystem::init(uint8_t mID[4], int irq, int rst, int ss) {
 
   dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
 
+  Serial.printf("(RangingSystem): started with address %c%c%c%c", (char)mID[0], (char)mID[1], (char)mID[2], (char)mID[3]);
+  Serial.println();
   return 0;
 }
 
@@ -105,6 +107,9 @@ int16_t RangingSystem::initiateRanging(uint8_t oID[4], uint32_t timeout) {
   this->reset();
 
   std::copy(oID, oID + 4, otherID);
+
+  Serial.printf("(RangingSystem): initiate raning to %c%c%c%c with timeout %u", (char)oID[0], (char)oID[1], (char)oID[2], (char)oID[3], timeout);
+  Serial.println();
 
   initator_poll_msg[5] = myID[0];
   initator_poll_msg[6] = myID[1];
@@ -218,6 +223,9 @@ float RangingSystem::respondToRanging(uint8_t oID[4], uint32_t timeout) {
   this->reset();
 
   std::copy(oID, oID + 4, otherID);
+
+  Serial.printf("(RangingSystem): start responding to %c%c%c%c with timeout %u", (char)oID[0], (char)oID[1], (char)oID[2], (char)oID[3], timeout);
+  Serial.println();
 
   initator_poll_msg[5] = otherID[0];
   initator_poll_msg[6] = otherID[1];

@@ -6,6 +6,7 @@ void SetupState::onEnter() {
   configManager = ConfigManager::getInstance();
   mqttManager = MqttManager::getInstance();
   ranging = RangingSystem::getInstance();
+  rangingInitResult = ranging->init(configManager->deviceConfig.rangingId, PIN_IRQ, PIN_RST, PIN_SS);
 
   if (!mqttManager->isConfigAvailable()) {
     Serial.println("[*] No configuration found. Entering configuration mode.");
@@ -15,8 +16,6 @@ void SetupState::onEnter() {
   }
 
   mqttManager->connect();
-
-  rangingInitResult = ranging->init(configManager->deviceConfig.rangingId, PIN_IRQ, PIN_RST, PIN_SS);
 }
 
 void SetupState::onUpdate() {

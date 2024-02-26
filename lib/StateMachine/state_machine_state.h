@@ -1,6 +1,10 @@
 #ifndef STATE_MACHINE_STATE_H
 #define STATE_MACHINE_STATE_H
 
+typedef int StateMachineSubState;
+
+const StateMachineSubState IDLE = 0;
+
 class State {
 public:
   virtual void onEnter() = 0;

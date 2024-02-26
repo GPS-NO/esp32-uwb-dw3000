@@ -43,17 +43,17 @@ void MqttManager::setupWifi(const char *ssid, const char *password, int maxAttem
 
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("");
-    Serial.println("Successfully connected to the WiFi network with the following local IP: ");
-    Serial.print(WiFi.localIP());
-    Serial.println("");
+    Serial.print("(MqttManager): Successfully connected to the WiFi network with the following local IP: ");
+    Serial.println(WiFi.localIP());
   } else {
-    Serial.println("Error connecting to the WiFi network!");
+    Serial.print("(MqttManager): Error connecting to the WiFi network! Status: ");
     Serial.println(WiFi.status());
   }
 }
 
 void MqttManager::publish(const char *topic, const char *payload) {
-  Serial.println("publishing..");
+  Serial.print("(MqttManager): publishing to ");
+  Serial.println(topic);
   mqttClient.publish(topic, payload);
 }
 
@@ -88,7 +88,7 @@ void MqttManager::processMessage(const char *topic, byte *payload, unsigned int 
   payload[length] = '\0';
 
   const char *payloadStr = reinterpret_cast<const char *>(payload);
-  Serial.print("Received new message in topic: ");
+  Serial.print("(MqttManager):  Received new message in topic: ");
   Serial.print(topic);
   Serial.print(" with payload: ");
   Serial.println(payloadStr);
