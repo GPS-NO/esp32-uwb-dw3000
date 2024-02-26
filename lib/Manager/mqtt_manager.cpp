@@ -99,9 +99,10 @@ String MqttManager::getMessagePayload() {
   return "";
 }
 
-char *MqttManager::getBaseTopic() {
+String MqttManager::getBaseTopic() {
   char topicBuffer[64];
   sprintf(topicBuffer, "devices/%s", configManager->deviceConfig.deviceId);
+  return String(topicBuffer);
 }
 
 void MqttManager::connect() {
@@ -124,7 +125,7 @@ void MqttManager::connect() {
   mqttClient.setCallback(MqttManager::processMessage);
 
   char topicBuffer[64];
-  sprintf(topicBuffer, "%s/heartbeat", getBaseTopic());
+  sprintf(topicBuffer, "%s/heartbeat", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, String(millis()).c_str());
 
   this->registerDevice();
@@ -133,49 +134,49 @@ void MqttManager::connect() {
 void MqttManager::registerDevice() {
   char topicBuffer[64];
 
-  sprintf(topicBuffer, "%s/wifi/ssid", getBaseTopic());
+  sprintf(topicBuffer, "%s/wifi/ssid", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, configManager->deviceConfig.wifi.ssid);
 
-  sprintf(topicBuffer, "%s/wifi/password", getBaseTopic());
+  sprintf(topicBuffer, "%s/wifi/password", this->getBaseTopic().c_str());
   char *wifiPassword = configManager->hidePartialPassword(configManager->deviceConfig.wifi.password);
   mqttClient.publish(topicBuffer, wifiPassword);
 
-  sprintf(topicBuffer, "%s/wifi/maxAttempts", getBaseTopic());
+  sprintf(topicBuffer, "%s/wifi/maxAttempts", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, String(configManager->deviceConfig.wifi.maxAttempts).c_str());
 
-  sprintf(topicBuffer, "%s/wifi/attemptDelay", getBaseTopic());
+  sprintf(topicBuffer, "%s/wifi/attemptDelay", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, String(configManager->deviceConfig.wifi.attemptDelay).c_str());
 
   // ------------------------------------------------------------------------------------------
 
-  sprintf(topicBuffer, "%s/mqtt/host", getBaseTopic());
+  sprintf(topicBuffer, "%s/mqtt/host", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, configManager->deviceConfig.mqtt.host);
 
-  sprintf(topicBuffer, "%s/mqtt/port", getBaseTopic());
+  sprintf(topicBuffer, "%s/mqtt/port", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, String(configManager->deviceConfig.mqtt.port).c_str());
 
-  sprintf(topicBuffer, "%s/mqtt/username", getBaseTopic());
+  sprintf(topicBuffer, "%s/mqtt/username", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, configManager->deviceConfig.mqtt.username);
 
-  sprintf(topicBuffer, "%s/mqtt/password", getBaseTopic());
+  sprintf(topicBuffer, "%s/mqtt/password", this->getBaseTopic().c_str());
   char *mqttPassword = configManager->hidePartialPassword(configManager->deviceConfig.mqtt.password);
   mqttClient.publish(topicBuffer, mqttPassword);
 
   // ------------------------------------------------------------------------------------------
 
-  sprintf(topicBuffer, "%s/device/id", getBaseTopic());
+  sprintf(topicBuffer, "%s/device/id", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, configManager->deviceConfig.deviceId);
 
-  sprintf(topicBuffer, "%s/device/chip", getBaseTopic());
+  sprintf(topicBuffer, "%s/device/chip", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, String(configManager->deviceConfig.chipId).c_str());
 
-  sprintf(topicBuffer, "%s/device/address", getBaseTopic());
+  sprintf(topicBuffer, "%s/device/address", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, String((const char *)configManager->deviceConfig.rangingId).c_str());
 
-  sprintf(topicBuffer, "%s/device/version", getBaseTopic());
+  sprintf(topicBuffer, "%s/device/version", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, VERSION_STRING);
 
-  sprintf(topicBuffer, "%s/device/commit", getBaseTopic());
+  sprintf(topicBuffer, "%s/device/commit", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, GIT_COMMIT);
 }
 

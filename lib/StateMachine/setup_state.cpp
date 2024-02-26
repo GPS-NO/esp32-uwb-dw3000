@@ -14,11 +14,11 @@ void SetupState::onEnter() {
   mqttManager->connect();
 
   char topicBuffer[128];
-  sprintf(topicBuffer, "%s/ranging/+/+", mqttManager->getBaseTopic());
+  sprintf(topicBuffer, "%s/ranging/+/+", mqttManager->getBaseTopic().c_str());
   mqttManager->subscribe(topicBuffer, [](const char *topic, const char *payload) {
     Serial.println("(SETUP_STATE): " + String(payload));
     String receivedTopic = String(topic);
-    size_t baseTopicLength = String(MqttManager::getInstance()->getBaseTopic()).length();
+    size_t baseTopicLength = (MqttManager::getInstance()->getBaseTopic() + "/ranging").length();
     receivedTopic.remove(0, baseTopicLength + 1);
 
     String otherID = receivedTopic.substring(0, 4);

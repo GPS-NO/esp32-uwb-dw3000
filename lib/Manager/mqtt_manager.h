@@ -41,7 +41,7 @@ public:
   void loop();
   String getMessageTopic();
   String getMessagePayload();
-  char *getBaseTopic();
+  String getBaseTopic();
 
   static bool compareMqttTopics(const char *topic1, const char *topic2);
 
