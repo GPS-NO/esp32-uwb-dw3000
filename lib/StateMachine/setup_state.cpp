@@ -75,5 +75,5 @@ void SetupState::onUpdate() {
 }
 
 void SetupState::onExit() {
-  //
+  mqttManager->unsubscribeAll();
 }

@@ -34,6 +34,7 @@ public:
   void publish(const char *topic, const char *payload);
   void subscribe(const char *topic, MQTTCallback callback);
   void unsubscribe(const char *topic);
+  void unsubscribeAll();
   void connect();
   void setupWifi(const char *ssid, const char *password, int maxAttempts, int attemptDelay);
   void registerDevice();

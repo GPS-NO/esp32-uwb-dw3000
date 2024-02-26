@@ -66,6 +66,13 @@ void MqttManager::unsubscribe(const char *topic) {
   }
 }
 
+void MqttManager::unsubscribeAll() {
+  for (auto it = subscriptions.begin(); it != subscriptions.end(); ++it) {
+    mqttClient.unsubscribe(it->topic);
+    subscriptions.erase(it);
+  }
+}
+
 void MqttManager::processMessage(const char *topic, byte *payload, unsigned int length) {
   payload[length] = '\0';
 

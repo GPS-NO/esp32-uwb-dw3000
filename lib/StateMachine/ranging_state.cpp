@@ -71,5 +71,5 @@ void RangingState::onUpdate() {
 }
 
 void RangingState::onExit() {
-  //
+  mqttManager->unsubscribeAll();
 }
