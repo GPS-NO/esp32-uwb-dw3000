@@ -17,6 +17,14 @@ void SetupState::onEnter() {
   sprintf(topicBuffer, "%s/ranging/+/+", mqttManager->getBaseTopic());
   mqttManager->subscribe(topicBuffer, [](const char *topic, const char *payload) {
     Serial.println("(SETUP_STATE): " + String(payload));
+    String receivedTopic = String(topic);
+    size_t baseTopicLength = String(MqttManager::getInstance()->getBaseTopic()).length();
+    receivedTopic.remove(0, baseTopicLength + 1);
+
+    String otherID = receivedTopic.substring(0, 4);
+    String rangingType = receivedTopic.substring(5);
+
+    Serial.println("(SETUP_STATE): " + receivedTopic + " " + rangingType + " " + otherID);
   });
 
   int8_t rangingInitResult = ranging->init(configManager->deviceConfig.rangingId, PIN_IRQ, PIN_RST, PIN_SS);
