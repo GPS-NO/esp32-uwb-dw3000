@@ -10,6 +10,10 @@ DeviceConfig ConfigManager::deviceConfig;
 ConfigManager::ConfigManager() {}
 
 ConfigManager::~ConfigManager() {
+  destroy();
+}
+
+void ConfigManager::destroy() {
   if (instance != nullptr) {
     delete instance;
     instance = nullptr;

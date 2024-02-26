@@ -5,9 +5,9 @@
 void IdleState::onEnter() {
   Serial.println("[*] Enter State: Idle");
 
-  /*delete ConfigManager::getInstance();
-  delete MqttManager::getInstance();*/
-  //RangingSystem::getInstance()->destroy();
+  ConfigManager::destroy();
+  MqttManager::destroy();
+  RangingSystem::destroy();
 }
 
 void IdleState::onUpdate() {

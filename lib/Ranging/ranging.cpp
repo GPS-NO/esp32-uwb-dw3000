@@ -38,7 +38,7 @@ RangingSystem::RangingSystem() {
 }
 
 RangingSystem::~RangingSystem() {
-  this->destroy();
+  destroy();
 }
 
 void RangingSystem::destroy() {
