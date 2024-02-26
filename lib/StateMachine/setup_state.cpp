@@ -13,7 +13,9 @@ void SetupState::onEnter() {
 
   mqttManager->connect();
 
-  mqttManager->subscribe("gpsno/test", [](const char *payload) {
+  char topicBuffer[128];
+  sprintf(topicBuffer, "%s/ranging/+/+", mqttManager->getBaseTopic());
+  mqttManager->subscribe(topicBuffer, [](const char *payload) {
     Serial.println("(SETUP_STATE): " + String(payload));
   });
 
