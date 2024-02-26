@@ -55,7 +55,7 @@ void RangingSystem::printHex(uint8_t num) {
 }
 
 int8_t RangingSystem::init(uint8_t mID[4], int irq, int rst, int ss) {
-  std::copy(mID, mID + 4, otherID);
+  std::copy(mID, mID + 4, myID);
 
   spiBegin(irq, rst);
   spiSelect(ss);
@@ -63,7 +63,7 @@ int8_t RangingSystem::init(uint8_t mID[4], int irq, int rst, int ss) {
   dwt_reset();
 
   /* Time needed for DW3000 to start up (transition from INIT_RC to IDLE_RC */
-  delay(2);
+  delay(5);
 
   /* Need to make sure DW IC is in IDLE_RC before proceeding */
   while (!dwt_checkidlerc()) {
