@@ -46,7 +46,7 @@ void MqttManager::publish(const char *topic, const char *payload) {
   mqttClient.publish(topic, payload);
 }
 
-void MqttManager::subscribe(const char *topic, std::function<void(const char *payload)> callback) {
+void MqttManager::subscribe(const char *topic, MQTTCallback callback) {
   if (!mqttClient.connected()) {
     // connect();
   }
@@ -76,8 +76,8 @@ void MqttManager::processMessage(const char *topic, byte *payload, unsigned int 
   Serial.println(payloadStr);
 
   for (const MqttSubscription &sub : MqttManager::getInstance()->subscriptions) {
-    if (strcmp(sub.topic, topic) == 0) {
-      sub.callback(payloadStr);
+    if (MqttManager::compareMqttTopics(sub.topic, topic) == 0) {
+      sub.callback(topic, payloadStr);
       break;
     }
   }
@@ -181,4 +181,30 @@ void MqttManager::registerDevice() {
 
 void MqttManager::loop() {
   mqttClient.loop();
+}
+
+bool MqttManager::compareMqttTopics(const char *topic1, const char *topic2) {
+  while (*topic1 && *topic2) {
+    if (*topic1 == '+' || *topic2 == '+') {
+      // '+' wildcard matches any single level
+      while (*topic1 && *topic1 != '/') topic1++;
+      while (*topic2 && *topic2 != '/') topic2++;
+    } else if (*topic1 == '#' || *topic2 == '#') {
+      // '#' wildcard matches any remaining levels
+      return true;
+    } else if (*topic1 != *topic2) {
+      return false;
+    }
+
+    // Move to the next character in both topics
+    topic1++;
+    topic2++;
+
+    // Check for the end of a level
+    if (*topic1 == '/') topic1++;
+    if (*topic2 == '/') topic2++;
+  }
+
+  // Check if both topics reach the end at the same time
+  return *topic1 == '\0' && *topic2 == '\0';
 }

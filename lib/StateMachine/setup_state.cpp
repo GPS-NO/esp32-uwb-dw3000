@@ -15,7 +15,7 @@ void SetupState::onEnter() {
 
   char topicBuffer[128];
   sprintf(topicBuffer, "%s/ranging/+/+", mqttManager->getBaseTopic());
-  mqttManager->subscribe(topicBuffer, [](const char *payload) {
+  mqttManager->subscribe(topicBuffer, [](const char *topic, const char *payload) {
     Serial.println("(SETUP_STATE): " + String(payload));
   });
 

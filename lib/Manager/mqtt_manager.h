@@ -9,9 +9,11 @@
 #include "config_manager.h"
 #include "boarddefines.h"
 
+typedef std::function<void(const char *topic, const char *payload)> MQTTCallback;
+
 struct MqttSubscription {
   const char *topic;
-  std::function<void(const char *payload)> callback;
+  MQTTCallback callback;
 };
 
 class MqttManager {
@@ -30,7 +32,7 @@ public:
   static MqttManager *getInstance();
 
   void publish(const char *topic, const char *payload);
-  void subscribe(const char *topic, std::function<void(const char *payload)> callback);
+  void subscribe(const char *topic, MQTTCallback callback);
   void unsubscribe(const char *topic);
   void connect();
   void setupWifi(const char *ssid, const char *password, int maxAttempts, int attemptDelay);
@@ -40,6 +42,8 @@ public:
   String getMessageTopic();
   String getMessagePayload();
   char *getBaseTopic();
+
+  static bool compareMqttTopics(const char *topic1, const char *topic2);
 
 protected:
   ConfigManager *configManager;
