@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 
 MqttManager *MqttManager::instance = nullptr;
+static LinkedList<MqttSubscription *> subscriptions = LinkedList<MqttSubscription *>();
 
 MqttManager::MqttManager()
   : mqttClient(wifiClient) {
@@ -25,6 +26,7 @@ void MqttManager::destroy() {
   if (instance != nullptr) {
     delete instance;
     instance = nullptr;
+    subscriptions.clear();
   }
 }
 
@@ -63,24 +65,31 @@ void MqttManager::subscribe(const char *topic, MQTTCallback callback) {
   }
 
   mqttClient.subscribe(topic);
-  subscriptions.push_back({ topic, callback });
+
+  MqttSubscription *sub = new MqttSubscription();
+  strcpy(sub->topic, topic);
+  sub->callback = callback;
+
+  subscriptions.add(sub);
 }
 
 void MqttManager::unsubscribe(const char *topic) {
   mqttClient.unsubscribe(topic);
 
-  for (auto it = subscriptions.begin(); it != subscriptions.end(); ++it) {
-    if (strcmp(it->topic, topic) == 0) {
-      subscriptions.erase(it);
+  for (int i = 0; i < subscriptions.size(); i++) {
+    MqttSubscription *sub = subscriptions.get(i);
+    if (strcmp(sub->topic, topic) == 0) {
+      subscriptions.remove(i);
       break;
     }
   }
 }
 
 void MqttManager::unsubscribeAll() {
-  for (auto it = subscriptions.begin(); it != subscriptions.end(); ++it) {
-    mqttClient.unsubscribe(it->topic);
-    subscriptions.erase(it);
+  for (int i = 0; i < subscriptions.size(); i++) {
+    MqttSubscription *sub = subscriptions.get(i);
+    mqttClient.unsubscribe(sub->topic);
+    subscriptions.remove(i);
   }
 }
 
@@ -88,14 +97,17 @@ void MqttManager::processMessage(const char *topic, byte *payload, unsigned int 
   payload[length] = '\0';
 
   const char *payloadStr = reinterpret_cast<const char *>(payload);
-  Serial.print("(MqttManager):  Received new message in topic: ");
+  Serial.print("(MqttManager): Received new message in topic: ");
   Serial.print(topic);
   Serial.print(" with payload: ");
   Serial.println(payloadStr);
 
-  for (const MqttSubscription &sub : MqttManager::getInstance()->subscriptions) {
-    if (MqttManager::compareMqttTopics(sub.topic, topic) == 0) {
-      sub.callback(topic, payloadStr);
+  for (int i = 0; i < subscriptions.size(); i++) {
+    MqttSubscription *sub = subscriptions.get(i);
+    if (MqttManager::compareMqttTopics(sub->topic, topic) == true) {
+      Serial.print("(MqttManager): calling ");
+      Serial.println(sub->topic);
+      sub->callback(topic, payloadStr);
       break;
     }
   }
@@ -218,28 +230,34 @@ void MqttManager::loop() {
   mqttClient.loop();
 }
 
-bool MqttManager::compareMqttTopics(const char *topic1, const char *topic2) {
-  while (*topic1 && *topic2) {
-    if (*topic1 == '+' || *topic2 == '+') {
+bool MqttManager::compareMqttTopics(const char *subscription, const char *topic) {
+  String strSubscription = String(subscription);
+  String strTopic = String(topic);
+
+  while (strSubscription.length() > 0 && strTopic.length() > 0) {
+    if (strSubscription.charAt(0) == '+') {
       // '+' wildcard matches any single level
-      while (*topic1 && *topic1 != '/') topic1++;
-      while (*topic2 && *topic2 != '/') topic2++;
-    } else if (*topic1 == '#' || *topic2 == '#') {
+      while (strSubscription.length() > 0 && strSubscription.charAt(0) != '/') strSubscription.remove(0, 1);
+      while (strTopic.length() > 0 && strTopic.charAt(0) != '/') strTopic.remove(0, 1);
+    } else if (strSubscription.charAt(0) == '#') {
       // '#' wildcard matches any remaining levels
       return true;
-    } else if (*topic1 != *topic2) {
+    } else if (strSubscription.charAt(0) != strTopic.charAt(0)) {
       return false;
     }
 
     // Move to the next character in both topics
-    topic1++;
-    topic2++;
+    strSubscription.remove(0, 1);
+    strTopic.remove(0, 1);
 
     // Check for the end of a level
-    if (*topic1 == '/') topic1++;
-    if (*topic2 == '/') topic2++;
+    if (strSubscription.charAt(0) == '/') strSubscription.remove(0, 1);
+    if (strTopic.charAt(0) == '/') strTopic.remove(0, 1);
+
+    if (strTopic.length() == 0 && strSubscription.length() > 0)
+      break;
   }
 
   // Check if both topics reach the end at the same time
-  return *topic1 == '\0' && *topic2 == '\0';
+  return strSubscription.length() == 0 && strTopic.length() == 0;
 }

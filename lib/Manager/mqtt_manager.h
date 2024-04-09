@@ -4,15 +4,16 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include <vector>
+#include <LinkedList.h>
 
 #include "config_manager.h"
 #include "boarddefines.h"
 
 typedef std::function<void(const char *topic, const char *payload)> MQTTCallback;
 
-struct MqttSubscription {
-  const char *topic;
+class MqttSubscription {
+public:
+  char topic[128];
   MQTTCallback callback;
 };
 
@@ -21,8 +22,6 @@ private:
   static MqttManager *instance;
   WiFiClient wifiClient;
   PubSubClient mqttClient;
-  std::vector<MqttSubscription>
-    subscriptions;
 
   static void processMessage(const char *topic, byte *payload, unsigned int length);
 
@@ -50,7 +49,7 @@ public:
   String getMessagePayload();
   String getBaseTopic();
 
-  static bool compareMqttTopics(const char *topic1, const char *topic2);
+  static bool compareMqttTopics(const char *subscribedTopic, const char *receivedTopic);
 
 protected:
   ConfigManager *configManager;

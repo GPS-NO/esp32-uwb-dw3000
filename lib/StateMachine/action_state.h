@@ -26,6 +26,7 @@ private:
 
 protected:
   MqttManager *mqttManager;
+  ConfigManager *configManager;
   RangingSystem *ranging;
 };
 

@@ -3,6 +3,7 @@
 void ActionState::onEnter() {
   Serial.println("[*] Enter State: Action");
 
+  configManager = ConfigManager::getInstance();
   mqttManager = MqttManager::getInstance();
   ranging = RangingSystem::getInstance();
 
@@ -26,37 +27,16 @@ void ActionState::onEnter() {
     this->onAction(payload);
   });
 
-  sprintf(topicBuffer, "%s/ranging/+/+", mqttManager->getBaseTopic().c_str());
+  sprintf(topicBuffer, "broadcast/action/ranging/+/+");
   mqttManager->subscribe(topicBuffer, [&](const char *topic, const char *payload) {
-    String receivedTopic = String(topic);
-    size_t baseTopicLength = (MqttManager::getInstance()->getBaseTopic() + "/ranging").length();
-    receivedTopic.remove(0, baseTopicLength + 1);
-
-    String otherID = receivedTopic.substring(0, 4);
-    String rangingType = receivedTopic.substring(5);
-
-    Serial.println("(ACTION_STATE): Ranging operation received type: " + rangingType + " oID: " + otherID);
-
-    if (rangingType.equalsIgnoreCase("init")) {
-      this->subState = RANING_INIT;
-    } else if (rangingType.equalsIgnoreCase("ranging")) {
-      this->subState = RANING_RESPOND;
-    }
-
-    this->otherID[0] = (uint8_t)otherID.charAt(0);
-    this->otherID[1] = (uint8_t)otherID.charAt(1);
-    this->otherID[2] = (uint8_t)otherID.charAt(2);
-    this->otherID[3] = (uint8_t)otherID.charAt(3);
-
-    int timeout = String(payload).toInt();
-    if (timeout > 0) this->timeout = timeout;
-    else Serial.println("(ACTION_STATE): unknown timeout payload");
+    Serial.println("IN RANGING");
   });
 }
 
 void ActionState::onAction(const char *payload) {
   String strPayload = String(payload);
   strPayload.trim();
+  Serial.println("(ACTION_STATE) onAction : " + strPayload);
   if (strPayload.equalsIgnoreCase("ping")) {
     mqttManager->registerDevice();
   } else if (strPayload.equalsIgnoreCase("restart")) {
