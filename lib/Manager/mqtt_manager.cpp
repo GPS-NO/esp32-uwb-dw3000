@@ -198,7 +198,7 @@ void MqttManager::registerDevice() {
   mqttClient.publish(topicBuffer, String(configManager->deviceConfig.chipId).c_str());
 
   sprintf(topicBuffer, "%s/device/address", this->getBaseTopic().c_str());
-  mqttClient.publish(topicBuffer, String((const char *)configManager->deviceConfig.rangingId).c_str());
+  mqttClient.publish(topicBuffer, String((const char *)configManager->deviceConfig.rangingId).substring(0, 4).c_str());
 
   sprintf(topicBuffer, "%s/device/version", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, VERSION_STRING);
