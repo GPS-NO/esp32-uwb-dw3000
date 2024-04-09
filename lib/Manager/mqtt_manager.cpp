@@ -208,6 +208,7 @@ void MqttManager::registerDevice() {
 }
 
 void MqttManager::sendHeartbeat() {
+  Serial.println("(MqttManager): sending Heratbeat");
   char topicBuffer[64];
   sprintf(topicBuffer, "%s/heartbeat", this->getBaseTopic().c_str());
   mqttClient.publish(topicBuffer, String(millis()).c_str());
