@@ -17,6 +17,8 @@ public:
   virtual void onExit() override;
 
 private:
+  void onAction(const char *payload);
+
   unsigned long lastHeartbeat;
   StateMachineSubState subState;
   uint8_t otherID[4];

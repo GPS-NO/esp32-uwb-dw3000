@@ -16,6 +16,16 @@ void ActionState::onEnter() {
   otherID[3] = (uint8_t)'D';
 
   char topicBuffer[128];
+  sprintf(topicBuffer, "%s/action", mqttManager->getBaseTopic().c_str());
+  mqttManager->subscribe(topicBuffer, [&](const char *topic, const char *payload) {
+    this->onAction(payload);
+  });
+
+  sprintf(topicBuffer, "broadcast/action");
+  mqttManager->subscribe(topicBuffer, [&](const char *topic, const char *payload) {
+    this->onAction(payload);
+  });
+
   sprintf(topicBuffer, "%s/ranging/+/+", mqttManager->getBaseTopic().c_str());
   mqttManager->subscribe(topicBuffer, [&](const char *topic, const char *payload) {
     String receivedTopic = String(topic);
@@ -42,6 +52,16 @@ void ActionState::onEnter() {
     if (timeout > 0) this->timeout = timeout;
     else Serial.println("(ACTION_STATE): unknown timeout payload");
   });
+}
+
+void ActionState::onAction(const char *payload) {
+  String strPayload = String(payload);
+  strPayload.trim();
+  if (strPayload.equalsIgnoreCase("ping")) {
+    mqttManager->registerDevice();
+  } else if (strPayload.equalsIgnoreCase("restart")) {
+    ESP.restart();
+  }
 }
 
 void ActionState::onUpdate() {
