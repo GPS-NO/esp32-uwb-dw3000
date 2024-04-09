@@ -29,7 +29,41 @@ void ActionState::onEnter() {
 
   sprintf(topicBuffer, "broadcast/action/ranging/+/+");
   mqttManager->subscribe(topicBuffer, [&](const char *topic, const char *payload) {
-    Serial.println("IN RANGING");
+    Serial.println("(ACTION_STATE) rangingCallback");
+
+    String receivedTopic = String(topic);
+    size_t baseTopicLength = String("broadcast/action/ranging").length();
+    receivedTopic.remove(0, baseTopicLength + 1);
+
+    String initiator = receivedTopic.substring(0, 4);
+    String ranger = receivedTopic.substring(5);
+
+    String myID = String((const char *)configManager->deviceConfig.rangingId).substring(0, 4);
+
+    if (!initiator.equals(myID) && !ranger.equals(myID)) {
+      Serial.println("(ACTION_STATE): no ranging for me: initiator: " + initiator + " ranger:" + ranger);
+      return;
+    }
+
+    String otherID = initiator;
+    String rangingType = "ranging";
+    this->subState = RANING_RESPOND;
+    if (initiator.equals(myID)) {
+      otherID = ranger;
+      rangingType = "init";
+      this->subState = RANING_INIT;
+    }
+
+    Serial.println("(ACTION_STATE): Ranging operation received type:" + rangingType + " initiator:" + initiator + " ranger:" + ranger + " (myID:" + myID + " oID:" + otherID + ")");
+
+    this->otherID[0] = (uint8_t)otherID.charAt(0);
+    this->otherID[1] = (uint8_t)otherID.charAt(1);
+    this->otherID[2] = (uint8_t)otherID.charAt(2);
+    this->otherID[3] = (uint8_t)otherID.charAt(3);
+
+    int timeout = String(payload).toInt();
+    if (timeout > 0) this->timeout = timeout;
+    else Serial.println("(ACTION_STATE): unknown timeout payload");
   });
 }
 
