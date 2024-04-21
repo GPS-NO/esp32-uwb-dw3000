@@ -92,14 +92,14 @@ void ActionState::onUpdate() {
         case RANING_INIT:
           {
             int16_t status = ranging->initiateRanging(otherID, timeout);
-            sprintf(baseRangingTopicBuffer, "%s/ranging/%c%c%c%c/initiate", mqttManager->getBaseTopic().c_str(), otherID[0], otherID[1], otherID[2], otherID[3]);
+            sprintf(baseRangingTopicBuffer, "%s/ranging/%c%c%c%c", mqttManager->getBaseTopic().c_str(), otherID[0], otherID[1], otherID[2], otherID[3]);
             if (status > 0) {
               Serial.println("(ACTION_STATE): Ranging responded");
-              sprintf(topicBuffer, "%s/result", baseRangingTopicBuffer);
-              mqttManager->publish(topicBuffer, "true");
+              //sprintf(topicBuffer, "%s/result", baseRangingTopicBuffer);
+              //mqttManager->publish(topicBuffer, "true");
             } else {
               Serial.println("(ACTION_STATE): Ranging initiate timeout");
-              sprintf(topicBuffer, "%s/timeout", baseRangingTopicBuffer);
+              sprintf(topicBuffer, "%s/initiate/timeout", baseRangingTopicBuffer);
               mqttManager->publish(topicBuffer, String(timeout).c_str());
             }
             this->subState = IDLE;
@@ -108,16 +108,16 @@ void ActionState::onUpdate() {
         case RANING_RESPOND:
           {
             float distance = ranging->respondToRanging(otherID, timeout);
-            sprintf(baseRangingTopicBuffer, "%s/ranging/%c%c%c%c/respond", mqttManager->getBaseTopic().c_str(), otherID[0], otherID[1], otherID[2], otherID[3]);
+            sprintf(baseRangingTopicBuffer, "%s/ranging/%c%c%c%c", mqttManager->getBaseTopic().c_str(), otherID[0], otherID[1], otherID[2], otherID[3]);
             if (distance > 0.0f) {
               Serial.print("(ACTION_STATE): Ranging Success: ");
               Serial.print(distance, 2);
               Serial.println("cm");
-              sprintf(topicBuffer, "%s/result", baseRangingTopicBuffer);
+              sprintf(topicBuffer, "%s/distance", baseRangingTopicBuffer);
               mqttManager->publish(topicBuffer, String(distance).c_str());
             } else {
               Serial.println("(ACTION_STATE): Ranging timeout");
-              sprintf(topicBuffer, "%s/timeout", baseRangingTopicBuffer);
+              sprintf(topicBuffer, "%s/respond/timeout", baseRangingTopicBuffer);
               mqttManager->publish(topicBuffer, String(timeout).c_str());
             }
             this->subState = IDLE;
