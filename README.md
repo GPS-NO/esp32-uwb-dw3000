@@ -1,3 +1,7 @@
+## PREREQUISITES:
+1. Install the required UART driver to make it recognizeable in the Windows Device Manager
+   > https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers?tab=downloads
+
 ## NOTES:
 
 1. The sum of the values is the TX to RX antenna delay, experimentally determined by a calibration process. Here we use a hard coded typical value
