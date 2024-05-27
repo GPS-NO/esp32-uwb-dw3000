@@ -12,6 +12,7 @@ StateMachine::StateMachine() {
   currentState = StateMachine::idleState;
 
   stationState = STATUS_SETUP;
+  mqttManager = MqttManager::getInstance();
 }
 
 StateMachine* StateMachine::getInstance() {
@@ -24,6 +25,9 @@ StateMachine* StateMachine::getInstance() {
 
 void StateMachine::setStatus(StationStateEnum status) {
   stationState = status;
+
+  const char* stationStateString = getStationStateString();
+  mqttManager->updateStationStatus(stationStateString);
 }
 
 const char* StateMachine::getStationStateString() const {

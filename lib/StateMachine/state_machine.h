@@ -36,6 +36,7 @@ private:
   static StateMachine* instance;
   StateMachine();
   StationStateEnum stationState;
+  MqttManager* mqttManager;
 };
 
 #endif  // STATE_MACHINE_H

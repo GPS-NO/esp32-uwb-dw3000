@@ -74,8 +74,12 @@ void ActionState::onAction(const char *payload) {
   strPayload.trim();
   Serial.println("(ACTION_STATE) onAction : " + strPayload);
   if (strPayload.equalsIgnoreCase("ping")) {
+    const char *status = stateMachinePtr->getStationStateString();
+    mqttManager->updateStationStatus(status);
     mqttManager->registerDevice();
   } else if (strPayload.equalsIgnoreCase("restart")) {
+    stateMachinePtr->setStatus(STATUS_RESTARTING);
+    delay(10);
     ESP.restart();
   }
 }
