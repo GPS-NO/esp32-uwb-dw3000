@@ -38,6 +38,7 @@ public:
   void connect();
   void setupWifi(const char *ssid, const char *password, int maxAttempts, int attemptDelay);
   void registerDevice();
+  void updateStationStatus(const char *status);
   bool messageReceived();
   bool isConnected();
   bool isWifiConnected();
