@@ -2,8 +2,7 @@
 
 void SetupState::onEnter() {
   Serial.println("[*] Enter State: Setup");
-  stateMachinePtr = &StateMachine::getInstance();
-
+  stateMachinePtr = StateMachine::getInstance();
   stateMachinePtr->setStatus(STATUS_SETUP);
 
   configManager = ConfigManager::getInstance();

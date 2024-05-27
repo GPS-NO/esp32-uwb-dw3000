@@ -3,6 +3,8 @@
 #include "setup_state.h"
 #include "action_state.h"
 
+StateMachine* StateMachine::instance = nullptr;
+
 StateMachine::StateMachine() {
   idleState = new IdleState();
   setupState = new SetupState();
@@ -12,8 +14,11 @@ StateMachine::StateMachine() {
   stationState = STATUS_SETUP;
 }
 
-StateMachine& StateMachine::getInstance() {
-  static StateMachine instance;
+StateMachine* StateMachine::getInstance() {
+  if (instance == NULL) {
+    instance = new StateMachine();
+  }
+
   return instance;
 }
 
@@ -21,7 +26,7 @@ void StateMachine::setStatus(StationStateEnum status) {
   stationState = status;
 }
 
-const char* StateMachine::getStatusString() const {
+const char* StateMachine::getStationStateString() const {
   switch (stationState) {
     case STATUS_RANGING:
       return "RANGING";

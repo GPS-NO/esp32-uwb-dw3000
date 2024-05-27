@@ -1,7 +1,5 @@
 #include "mqtt_manager.h"
 
-#include <ArduinoJson.h>
-
 MqttManager *MqttManager::instance = nullptr;
 static LinkedList<MqttSubscription *> subscriptions = LinkedList<MqttSubscription *>();
 
@@ -54,6 +52,10 @@ void MqttManager::setupWifi(const char *ssid, const char *password, int maxAttem
 }
 
 void MqttManager::publish(const char *topic, const char *payload) {
+  if (!mqttClient.connected()) {
+    return;
+  }
+
   Serial.print("(MqttManager): publishing to ");
   Serial.println(topic);
   mqttClient.publish(topic, payload);
@@ -168,6 +170,14 @@ bool MqttManager::isConnected() {
 
 bool MqttManager::isWifiConnected() {
   return WiFi.status() == WL_CONNECTED;
+}
+
+void MqttManager::updateStationStatus(const char *status) {
+  char topicBuffer[64];
+
+  sprintf(topicBuffer, "%s/status", this->getBaseTopic().c_str());
+  Serial.println(status);
+  mqttClient.publish(topicBuffer, status);
 }
 
 void MqttManager::registerDevice() {

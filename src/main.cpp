@@ -20,7 +20,7 @@ void setup() {
   Serial.println();
   Serial.println(F("###################################################"));
 
-  stateMachinePtr = &StateMachine::getInstance();
+  stateMachinePtr = StateMachine::getInstance();
 }
 
 void loop() {

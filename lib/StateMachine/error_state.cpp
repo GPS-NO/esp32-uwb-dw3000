@@ -2,8 +2,7 @@
 
 void ErrorState::onEnter() {
   Serial.println("[*] Enter State: Error");
-  stateMachinePtr = &StateMachine::getInstance();
-
+  stateMachinePtr = StateMachine::getInstance();
   stateMachinePtr->setStatus(STATUS_ERROR);
 }
 

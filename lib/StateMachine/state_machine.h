@@ -2,6 +2,7 @@
 #define STATE_MACHINE_H
 
 #include "state.h"
+#include "mqtt_manager.h"
 
 typedef int StateMachineSubState;
 
@@ -19,8 +20,9 @@ enum StationStateEnum {
 
 class StateMachine {
 public:
-  static StateMachine& getInstance();
-  const char* getStatusString() const;
+  static StateMachine* getInstance();
+  ~StateMachine();
+  const char* getStationStateString() const;
   void setStatus(StationStateEnum status);
 
   State* currentState;
@@ -31,10 +33,8 @@ public:
   State* shutdownState;
 
 private:
+  static StateMachine* instance;
   StateMachine();
-  StateMachine(const StateMachine&) = delete;
-  StateMachine& operator=(const StateMachine&) = delete;
-
   StationStateEnum stationState;
 };
 

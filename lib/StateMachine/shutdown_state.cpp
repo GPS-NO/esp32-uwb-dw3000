@@ -2,11 +2,11 @@
 
 void ShutdownState::onEnter() {
   Serial.println("[*] Enter State: Shutdown");
-  stateMachinePtr = &StateMachine::getInstance();
+  stateMachinePtr = StateMachine::getInstance();
 }
 
 void ShutdownState::onUpdate() {
-  StateMachine::getInstance().currentState = StateMachine::getInstance().idleState;
+  stateMachinePtr->currentState = stateMachinePtr->idleState;
   ShutdownState::onExit();
 }
 

@@ -2,12 +2,8 @@
 
 void ActionState::onEnter() {
   Serial.println("[*] Enter State: Action");
-  stateMachinePtr = &StateMachine::getInstance();
-
+  stateMachinePtr = StateMachine::getInstance();
   stateMachinePtr->setStatus(STATUS_READY);
-
-  StateMachine &stateMachine = StateMachine::getInstance();
-  const char *statusString = stateMachine.getStatusString();
 
   configManager = ConfigManager::getInstance();
   mqttManager = MqttManager::getInstance();
