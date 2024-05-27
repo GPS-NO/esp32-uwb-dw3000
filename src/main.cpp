@@ -2,21 +2,13 @@
 #include <Wire.h>
 
 #include "boarddefines.h"
-#include "idle_state.h"
-#include "setup_state.h"
-#include "action_state.h"
-#include "state_machine_state.h"
+#include "state_machine.h"
 
-
-State* StateMachineState::idleState = new IdleState();
-State* StateMachineState::setupState = new SetupState();
-State* StateMachineState::actionState = new ActionState();
-State* StateMachineState::currentState = StateMachineState::idleState;
+StateMachine* stateMachinePtr;
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial)
-    ;
+  while (!Serial);
 
   pinMode(PIN_BTN, INPUT_PULLUP);
 
@@ -27,9 +19,11 @@ void setup() {
   Serial.printf("Version v%s @%s %s at %s", VERSION_STRING, GIT_COMMIT, __DATE__, __TIME__);
   Serial.println();
   Serial.println(F("###################################################"));
+
+  stateMachinePtr = &StateMachine::getInstance();
 }
 
 void loop() {
-  StateMachineState::currentState->onEnter();
-  StateMachineState::currentState->onUpdate();
+  stateMachinePtr->currentState->onEnter();
+  stateMachinePtr->currentState->onUpdate();
 }

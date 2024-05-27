@@ -2,6 +2,9 @@
 
 void SetupState::onEnter() {
   Serial.println("[*] Enter State: Setup");
+  stateMachinePtr = &StateMachine::getInstance();
+
+  stateMachinePtr->setStatus(STATUS_SETUP);
 
   configManager = ConfigManager::getInstance();
   mqttManager = MqttManager::getInstance();
@@ -23,7 +26,7 @@ void SetupState::onUpdate() {
     mqttManager->registerDevice();
     mqttManager->loop();
 
-    StateMachineState::currentState = StateMachineState::actionState;
+    stateMachinePtr->currentState = stateMachinePtr->actionState;
     SetupState::onExit();
     return;
   }

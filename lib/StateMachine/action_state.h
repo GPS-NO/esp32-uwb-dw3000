@@ -5,7 +5,7 @@
 
 #include "ranging.h"
 #include "mqtt_manager.h"
-#include "state_machine_state.h"
+#include "state_machine.h"
 
 const StateMachineSubState RANING_INIT = 10;
 const StateMachineSubState RANING_RESPOND = 11;
@@ -17,6 +17,8 @@ public:
   virtual void onExit() override;
 
 private:
+  StateMachine *stateMachinePtr;
+
   void onAction(const char *payload);
 
   unsigned long lastHeartbeat;

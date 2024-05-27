@@ -9,7 +9,7 @@
 #include "config_manager.h"
 #include "mqtt_manager.h"
 #include "ranging.h"
-#include "state_machine_state.h"
+#include "state_machine.h"
 
 class SetupState : public State {
 public:
@@ -18,6 +18,7 @@ public:
   virtual void onExit() override;
 
 private:
+  StateMachine *stateMachinePtr;
   int8_t rangingInitResult;
 
   void connectToWiFi(const char *ssid, const char *password);

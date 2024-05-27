@@ -1,9 +1,11 @@
 #include "idle_state.h"
 
-#include <Arduino.h>
-
 void IdleState::onEnter() {
   Serial.println("[*] Enter State: Idle");
+  stateMachinePtr = &StateMachine::getInstance();
+
+  stateMachinePtr->setStatus(STATUS_IDLE);
+  Serial.println("[*] Station Status: " + String(stateMachinePtr->getStatusString()));
 
   ConfigManager::destroy();
   MqttManager::destroy();
@@ -11,7 +13,9 @@ void IdleState::onEnter() {
 }
 
 void IdleState::onUpdate() {
-  StateMachineState::currentState = StateMachineState::setupState;
+  StateMachine *stateMachinePtr = &StateMachine::getInstance();
+  stateMachinePtr->currentState = stateMachinePtr->setupState;
+
   IdleState::onExit();
 }
 
