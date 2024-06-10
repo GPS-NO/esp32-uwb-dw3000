@@ -4,8 +4,6 @@
  * of the spectrum at the current temperature.
  * These values can be calibrated prior to taking reference measurements.
  * See NOTE 8 below. */
-extern dwt_txconfig_t txconfig_options;
-
 RangingSystem *RangingSystem::instance = nullptr;
 
 RangingSystem *RangingSystem::getInstance() {
@@ -34,8 +32,14 @@ RangingSystem::RangingSystem() {
     DWT_PDOA_M0       /* PDOA mode off */
   };
 
+  stationMode = STATION_MODE_UNSET;
+  reset(initiatorId, sizeof(initiatorId));
+  reset(responderId, sizeof(responderId));
+
+
   this->reset();
 }
+
 
 RangingSystem::~RangingSystem() {
   destroy();
@@ -54,8 +58,73 @@ void RangingSystem::printHex(uint8_t num) {
   Serial.print(hexCar);
 }
 
-int8_t RangingSystem::init(uint8_t mID[4], int irq, int rst, int ss) {
-  std::copy(mID, mID + 4, myID);
+uint8_t RangingSystem::init(StationMode mode) {
+  if (mode != STATION_MODE_UNSET && mode != STATION_MODE_INITIATOR && mode != STATION_MODE_RESPONDER) {
+    return DWT_INIT_STATION_MODE_ERROR;
+  }
+
+  stationMode = mode;
+
+  spiBegin(PIN_IRQ, PIN_RST);
+  spiSelect(PIN_SS);
+
+  delay(2);  // Time needed for DW3000 to start up (transition from INIT_RC to IDLE_RC, or could wait for SPIRDY event)
+
+
+  if (stationMode == STATION_MODE_INITIATOR) {
+    _fastSPI = SPISettings(16000000L, MSBFIRST, SPI_MODE0);
+
+    /* Configure the TX spectrum parameters (power, PG delay and PG count) */
+    dwt_configuretxrf(&txconfig_options);
+  } else if (stationMode == STATION_MODE_RESPONDER) {
+    /* Configure the TX spectrum parameters (power, PG delay and PG count) */
+    dwt_configuretxrf(&txconfig_options_rx);
+
+    /* Set expected response's delay and timeout. See NOTE 1 and 5 below.
+       As this example only handles one incoming frame with always the same delay and timeout, those values can be set here once for all. */
+    dwt_setrxaftertxdelay(POLL_TX_TO_RESP_RX_DLY_UUS);
+    dwt_setrxtimeout(RESP_RX_TIMEOUT_UUS);
+  }
+
+  while (!dwt_checkidlerc())  // Need to make sure DW IC is in IDLE_RC before proceeding
+  {
+    UART_puts("IDLE FAILED\r\n");
+    while (1) {
+      Serial.println("--- M1");
+    };
+  }
+
+  if (dwt_initialise(DWT_DW_INIT) == DWT_ERROR) {
+    UART_puts("INIT FAILED\r\n");
+    while (1) {
+      Serial.println("--- M2");
+    };
+  }
+
+  // Enabling LEDs here for debug so that for each TX the D1 LED will flash on DW3000 red eval-shield boards.
+  dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
+
+  if (dwt_configure(&config))  // if the dwt_configure returns DWT_ERROR either the PLL or RX calibration has failed the host should reset the device
+  {
+    UART_puts("CONFIG FAILED\r\n");
+    while (1) {
+      Serial.println("--- M3");
+    };
+  }
+
+  /* Apply default antenna delay value. See NOTE 2 below. */
+  dwt_setrxantennadelay(RX_ANT_DLY);
+  dwt_settxantennadelay(TX_ANT_DLY);
+
+  /* Next can enable TX/RX states output on GPIOs 5 and 6 to help debug, and also TX/RX LEDs
+   * Note, in real low power applications the LEDs should not be used. */
+  dwt_setlnapamode(DWT_LNA_ENABLE | DWT_PA_ENABLE);
+
+  return DWT_INIT_SUCCESS;
+}
+
+int8_t RangingSystem::init(uint8_t stationId[4], int irq, int rst, int ss) {
+  std::copy(stationId, stationId + 4, myID);
 
   spiBegin(irq, rst);
   spiSelect(ss);
@@ -63,7 +132,7 @@ int8_t RangingSystem::init(uint8_t mID[4], int irq, int rst, int ss) {
   dwt_reset();
 
   /* Time needed for DW3000 to start up (transition from INIT_RC to IDLE_RC */
-  delay(5);
+  delay(200);
 
   /* Need to make sure DW IC is in IDLE_RC before proceeding */
   while (!dwt_checkidlerc()) {
@@ -98,7 +167,7 @@ int8_t RangingSystem::init(uint8_t mID[4], int irq, int rst, int ss) {
 
   dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
 
-  Serial.printf("(RangingSystem): started with address %c%c%c%c", (char)mID[0], (char)mID[1], (char)mID[2], (char)mID[3]);
+  Serial.printf("(RangingSystem): started with address %c%c%c%c", (char)stationId[0], (char)stationId[1], (char)stationId[2], (char)stationId[3]);
   Serial.println();
   return 0;
 }
@@ -125,6 +194,7 @@ int16_t RangingSystem::initiateRanging(uint8_t oID[4], uint32_t timeout) {
   initator_final_msg[6] = myID[1];
   initator_final_msg[7] = myID[2];
   initator_final_msg[8] = myID[3];
+  Serial.println("--- 1");
 
   /* Set expected response's delay and timeout. See NOTE 4, 5 and 7 below.
      * As this example only handles one incoming frame with always the same
@@ -407,4 +477,23 @@ void RangingSystem::reset() {
      * so that it can be examined at a debug breakpoint. */
   tof = 0.0;
   distance = 0.0;
+}
+
+void RangingSystem::reset(uint8_t *array, size_t size) {
+  for (size_t i = 0; i < size; ++i) {
+    array[i] = 0;
+  }
+}
+
+const char *RangingSystem::getStationModeChar() const {
+  switch (stationMode) {
+    case STATION_MODE_UNSET:
+      return "UNSET";
+    case STATION_MODE_INITIATOR:
+      return "INITIATOR";
+    case STATION_MODE_RESPONDER:
+      return "RESPONDER";
+    default:
+      return "UNKNOWN";
+  }
 }

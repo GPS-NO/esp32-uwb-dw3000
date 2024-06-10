@@ -1,5 +1,6 @@
 #include "SPI.h"
 #include "dw3000.h"
+#include "utils.h"
 
 #pragma once
 #ifndef ranging_h
@@ -55,14 +56,30 @@
 
 #define RX_BUF_LEN 32
 
+//Martin
+#define PIN_RST 27
+#define PIN_IRQ 34
+#define PIN_SS 4
+
+/* */
+#define DWT_INIT_SUCCESS (0)
+#define DWT_INIT_IDLE_ERROR (2)
+#define DWT_INIT_ERROR (3)
+#define DWT_INIT_CONFIG_ERROR (4)
+#define DWT_INIT_STATION_MODE_ERROR (5)
+
+enum StationMode {
+  STATION_MODE_UNSET = 0,
+  STATION_MODE_INITIATOR = 1,
+  STATION_MODE_RESPONDER = 2
+};
+
 class RangingSystem {
 private:
   static RangingSystem *instance;
 
   RangingSystem();
   ~RangingSystem();
-
-  uint32_t chipId = 0;
 
   uint8_t initator_poll_msg[12];
   uint8_t responder_msg[15];
@@ -88,6 +105,21 @@ private:
 
   void printHex(uint8_t num);
 
+  // Martin
+  uint8_t stationMode;
+
+  uint8_t initiatorId[4];
+  uint8_t responderId[4];
+
+  // Initiator related
+  dwt_txconfig_t txconfig_options;
+  SPISettings _fastSPI;
+
+  // Responder related
+  dwt_txconfig_t txconfig_options_rx;
+
+  void reset(uint8_t *array, size_t size);
+
 public:
   static RangingSystem *getInstance();
   int8_t init(uint8_t mID[4], int irq, int rst, int ss);
@@ -95,5 +127,46 @@ public:
   float respondToRanging(uint8_t oID[4], uint32_t timeout = 10000);
   void reset();
   static void destroy();
+
+  //Martin
+  uint8_t init(StationMode mode);
+  const char *getStationModeChar() const;
+
+  inline StationMode getStationMode() const {
+    return static_cast<StationMode>(stationMode);
+  }
+
+  inline void setStationMode(StationMode mode) {
+    stationMode = mode;
+  }
+
+  inline uint8_t *getInitiatorId() {
+    return initiatorId;
+  }
+
+  inline void setInitiatorId(uint8_t id[4]) {
+    for (int i = 0; i < 4; i++) {
+      initiatorId[i] = id[i];
+    }
+  }
+
+  inline uint8_t *getResponderId() {
+    return responderId;
+  }
+
+  inline void setResponderId(uint8_t id[4]) {
+    for (int i = 0; i < 4; i++) {
+      responderId[i] = id[i];
+    }
+  }
+
+  bool isInitiatorIdSet() const {
+    return isArrayZeroed(initiatorId);
+  }
+
+  bool isResponderIdSet() const {
+    return isArrayZeroed(responderId);
+  }
 };
+
 #endif

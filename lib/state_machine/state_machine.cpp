@@ -26,11 +26,11 @@ StateMachine* StateMachine::getInstance() {
 void StateMachine::setStatus(StationStateEnum status) {
   stationState = status;
 
-  const char* stationStateString = getStationStateString();
+  const char* stationStateString = getStationStateChar();
   mqttManager->updateStationStatus(stationStateString);
 }
 
-const char* StateMachine::getStationStateString() const {
+const char* StateMachine::getStationStateChar() const {
   switch (stationState) {
     case STATUS_RANGING:
       return "RANGING";

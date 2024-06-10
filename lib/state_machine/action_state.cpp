@@ -29,6 +29,23 @@ void ActionState::onEnter() {
     this->onAction(payload);
   });
 
+  sprintf(topicBuffer, "broadcast/action/ranging");
+  mqttManager->subscribe(topicBuffer, [&](const char *topic, const char *payload) {
+    StationMode mode = ranging->getStationMode();
+
+    if (mode == STATION_MODE_UNSET) {
+      sprintf(topicBuffer, "%s/dwt/mode", mqttManager->getBaseTopic().c_str());
+
+      mqttManager->publish(topicBuffer, ranging->getStationModeChar());
+      ranging->setStationMode(STATION_MODE_INITIATOR);
+    }
+
+    uint8_t status = ranging->init(STATION_MODE_INITIATOR);
+    Serial.println("Ranging init status: " + String(status));
+    mqttManager->publish(topicBuffer, ranging->getStationModeChar());
+  });
+
+  /*
   sprintf(topicBuffer, "broadcast/action/ranging/+/+");
   mqttManager->subscribe(topicBuffer, [&](const char *topic, const char *payload) {
     Serial.println("(ACTION_STATE) rangingCallback");
@@ -67,6 +84,7 @@ void ActionState::onEnter() {
     if (timeout > 0) this->timeout = timeout;
     else Serial.println("(ACTION_STATE): unknown timeout payload");
   });
+  */
 }
 
 void ActionState::onAction(const char *payload) {
@@ -74,7 +92,7 @@ void ActionState::onAction(const char *payload) {
   strPayload.trim();
   Serial.println("(ACTION_STATE) onAction : " + strPayload);
   if (strPayload.equalsIgnoreCase("ping")) {
-    const char *status = stateMachinePtr->getStationStateString();
+    const char *status = stateMachinePtr->getStationStateChar();
     mqttManager->updateStationStatus(status);
     mqttManager->registerDevice();
   } else if (strPayload.equalsIgnoreCase("restart")) {

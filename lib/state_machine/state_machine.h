@@ -22,7 +22,7 @@ class StateMachine {
 public:
   static StateMachine* getInstance();
   ~StateMachine();
-  const char* getStationStateString() const;
+  const char* getStationStateChar() const;
   void setStatus(StationStateEnum status);
 
   State* currentState;
