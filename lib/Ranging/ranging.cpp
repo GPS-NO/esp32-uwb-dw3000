@@ -103,17 +103,12 @@ int8_t RangingSystem::init(int irq, int rst, int ss) {
 
   dwt_setleds(DWT_LEDS_DISABLE);
 
-  Serial.printf("(RangingSystem): started");
-  Serial.println();
+  Serial.printf("(RangingSystem): started\r\n");
   return 0;
 }
 
 int16_t RangingSystem::initiateRanging(uint32_t timeout) {
   this->reset();
-
-  setMessageId(this->initator_poll_msg, this->initiatorId);
-  setMessageId(this->initator_final_msg, this->initiatorId);
-  setMessageId(this->responder_msg, this->responderId);
 
   Serial.printf("(RangingSystem): initiate ranging to %c%c%c%c with timeout %u\r\n", (char)this->responderId[0], (char)this->responderId[1], (char)this->responderId[2], (char)this->responderId[3], timeout);
 
@@ -211,10 +206,6 @@ float RangingSystem::respondToRanging(uint32_t timeout) {
   this->reset();
 
   Serial.printf("(RangingSystem): start responding to %c%c%c%c with timeout %u\r\n", (char)this->initiatorId[0], (char)this->initiatorId[1], (char)this->initiatorId[2], (char)this->initiatorId[3], timeout);
-
-  setMessageId(this->initator_poll_msg, this->initiatorId);
-  setMessageId(this->initator_final_msg, this->initiatorId);
-  setMessageId(this->responder_msg, this->responderId);
 
   dwt_setpreambledetecttimeout(0);
   /* Clear reception timeout to start next ranging process. */
@@ -381,4 +372,8 @@ void RangingSystem::reset() {
      * so that it can be examined at a debug breakpoint. */
   tof = 0.0;
   distance = 0.0;
+
+  setMessageId(this->initator_poll_msg, this->initiatorId);
+  setMessageId(this->initator_final_msg, this->initiatorId);
+  setMessageId(this->responder_msg, this->responderId);
 }
