@@ -13,11 +13,6 @@ void ActionState::onEnter() {
   subState = IDLE;
   timeout = 10000;
 
-  otherID[0] = (uint8_t)'A';
-  otherID[1] = (uint8_t)'B';
-  otherID[2] = (uint8_t)'C';
-  otherID[3] = (uint8_t)'D';
-
   char topicBuffer[128];
   sprintf(topicBuffer, "%s/action", mqttManager->getBaseTopic().c_str());
   mqttManager->subscribe(topicBuffer, [&](const char *topic, const char *payload) {
@@ -40,12 +35,12 @@ void ActionState::onEnter() {
       ranging->setStationMode(STATION_MODE_INITIATOR);
     }
 
-    uint8_t status = ranging->init(STATION_MODE_INITIATOR);
+    uint8_t status = ranging->init(STATION_MODE_INITIATOR, this->initiatorID);
     Serial.println("Ranging init status: " + String(status));
     mqttManager->publish(topicBuffer, ranging->getStationModeChar());
   });
 
-  /*
+
   sprintf(topicBuffer, "broadcast/action/ranging/+/+");
   mqttManager->subscribe(topicBuffer, [&](const char *topic, const char *payload) {
     Serial.println("(ACTION_STATE) rangingCallback");
@@ -55,36 +50,38 @@ void ActionState::onEnter() {
     receivedTopic.remove(0, baseTopicLength + 1);
 
     String initiator = receivedTopic.substring(0, 4);
-    String ranger = receivedTopic.substring(5);
+    String responder = receivedTopic.substring(5);
 
     String myID = String((const char *)configManager->deviceConfig.rangingId).substring(0, 4);
 
-    if (!initiator.equals(myID) && !ranger.equals(myID)) {
-      Serial.println("(ACTION_STATE): no ranging for me: initiator: " + initiator + " ranger:" + ranger);
+    if (!initiator.equals(myID) && !responder.equals(myID)) {
+      Serial.println("(ACTION_STATE): no ranging for me: initiator: " + initiator + " responder:" + responder);
       return;
     }
 
-    String otherID = initiator;
-    String rangingType = "ranging";
+    String rangingType = "responder";
     this->subState = RANING_RESPOND;
     if (initiator.equals(myID)) {
-      otherID = ranger;
       rangingType = "init";
       this->subState = RANING_INIT;
     }
 
-    Serial.println("(ACTION_STATE): Ranging operation received type:" + rangingType + " initiator:" + initiator + " ranger:" + ranger + " (myID:" + myID + " oID:" + otherID + ")");
+    Serial.println("(ACTION_STATE): Ranging operation received type:" + rangingType + " initiator:" + initiator + " responder:" + responder + " myID:" + myID + "");
 
-    this->otherID[0] = (uint8_t)otherID.charAt(0);
-    this->otherID[1] = (uint8_t)otherID.charAt(1);
-    this->otherID[2] = (uint8_t)otherID.charAt(2);
-    this->otherID[3] = (uint8_t)otherID.charAt(3);
+    initiatorID[0] = (uint8_t)initiator.charAt(0);
+    initiatorID[1] = (uint8_t)initiator.charAt(1);
+    initiatorID[2] = (uint8_t)initiator.charAt(2);
+    initiatorID[3] = (uint8_t)initiator.charAt(3);
+
+    responderID[0] = (uint8_t)responder.charAt(0);
+    responderID[1] = (uint8_t)responder.charAt(1);
+    responderID[2] = (uint8_t)responder.charAt(2);
+    responderID[3] = (uint8_t)responder.charAt(3);
 
     int timeout = String(payload).toInt();
     if (timeout > 0) this->timeout = timeout;
     else Serial.println("(ACTION_STATE): unknown timeout payload");
   });
-  */
 }
 
 void ActionState::onAction(const char *payload) {
@@ -115,34 +112,40 @@ void ActionState::onUpdate() {
       switch (nextState) {
         case RANING_INIT:
           {
-            int16_t status = ranging->initiateRanging(otherID, timeout);
-            sprintf(baseRangingTopicBuffer, "%s/ranging/%c%c%c%c", mqttManager->getBaseTopic().c_str(), otherID[0], otherID[1], otherID[2], otherID[3]);
-            if (status > 0) {
-              Serial.println("(ACTION_STATE): Ranging responded");
-              //sprintf(topicBuffer, "%s/result", baseRangingTopicBuffer);
-              //mqttManager->publish(topicBuffer, "true");
+            ranging->setInitiatorId(initiatorID);
+            ranging->setResponderId(responderID);
+
+            ranging->init(STATION_MODE_INITIATOR, configManager->deviceConfig.rangingId);
+
+
+            float distance = ranging->initiateRanging(timeout);
+            if (distance >= 0.0f) {
+              Serial.print("(ACTION_STATE): Ranging Success: ");
+              Serial.print(distance, 2);
+              Serial.println("m");
+              // TODO: send distance
             } else {
-              Serial.println("(ACTION_STATE): Ranging initiate timeout");
-              sprintf(topicBuffer, "%s/initiate/timeout", baseRangingTopicBuffer);
-              mqttManager->publish(topicBuffer, String(timeout).c_str());
+              Serial.printf("(ACTION_STATE): Ranging initiate timeout %.2f\r\n", distance);
+              // TODO: send timeout
             }
             this->subState = IDLE;
             break;
           }
         case RANING_RESPOND:
           {
-            float distance = ranging->respondToRanging(otherID, timeout);
-            sprintf(baseRangingTopicBuffer, "%s/ranging/%c%c%c%c", mqttManager->getBaseTopic().c_str(), otherID[0], otherID[1], otherID[2], otherID[3]);
-            if (distance > 0.0f) {
-              Serial.print("(ACTION_STATE): Ranging Success: ");
-              Serial.print(distance, 2);
-              Serial.println("cm");
-              sprintf(topicBuffer, "%s/distance", baseRangingTopicBuffer);
-              mqttManager->publish(topicBuffer, String(distance).c_str());
+            ranging->setInitiatorId(initiatorID);
+            ranging->setResponderId(responderID);
+
+            ranging->init(STATION_MODE_RESPONDER, configManager->deviceConfig.rangingId);
+
+
+            int16_t status = ranging->respondToRanging(timeout);
+            if (status > 0) {
+              Serial.println("(ACTION_STATE): Ranging responded");
+              // TODO: send okay
             } else {
-              Serial.println("(ACTION_STATE): Ranging timeout");
-              sprintf(topicBuffer, "%s/respond/timeout", baseRangingTopicBuffer);
-              mqttManager->publish(topicBuffer, String(timeout).c_str());
+              Serial.printf("(ACTION_STATE): Ranging respond timeout %d\r\n", status);
+              // TODO: send timeout
             }
             this->subState = IDLE;
             break;

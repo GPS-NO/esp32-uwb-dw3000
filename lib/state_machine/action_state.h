@@ -23,7 +23,8 @@ private:
 
   unsigned long lastHeartbeat;
   StateMachineSubState subState;
-  uint8_t otherID[4];
+  uint8_t initiatorID[4];
+  uint8_t responderID[4];
   uint32_t timeout;
 
 protected:

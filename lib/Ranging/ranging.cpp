@@ -36,6 +36,11 @@ RangingSystem::RangingSystem() {
   reset(initiatorId, sizeof(initiatorId));
   reset(responderId, sizeof(responderId));
 
+  uint8_t init_msg[MSG_LEN] = { 0x41, 0x88, 0, 0xCA, 0xDE, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0 };
+
+  std::copy(std::begin(init_msg), std::end(init_msg), std::begin(tx_msg));
+  std::copy(std::begin(init_msg), std::end(init_msg), std::begin(rx_msg));
 
   this->reset();
 }
@@ -58,403 +63,309 @@ void RangingSystem::printHex(uint8_t num) {
   Serial.print(hexCar);
 }
 
-uint8_t RangingSystem::init(StationMode mode) {
+void RangingSystem::setMessageId(uint8_t *msg, uint8_t *stationId) {
+  msg[5] = stationId[3];
+  msg[6] = stationId[2];
+  msg[7] = stationId[1];
+  msg[8] = stationId[0];
+}
+
+bool RangingSystem::isValidMsg(uint8_t *msg, uint8_t *id) {
+  uint8_t msgIndex = 5;
+
+  for (int i = 3; i >= 0; i--) {
+    if (msg[msgIndex] != id[i]) return false;
+    msgIndex++;
+  }
+
+  return true;
+}
+
+uint8_t RangingSystem::init(StationMode mode, uint8_t stationId[4]) {
   if (mode != STATION_MODE_UNSET && mode != STATION_MODE_INITIATOR && mode != STATION_MODE_RESPONDER) {
     return DWT_INIT_STATION_MODE_ERROR;
   }
 
+  std::copy(stationId, stationId + 4, myID);
+
+  // fixme: ist die Reihenfolge richtig?
+  setMessageId(tx_msg, stationId);
+  setMessageId(rx_msg, stationId);
+
+  tx_msg[5] = stationId[3];
+  tx_msg[6] = stationId[2];
+  tx_msg[7] = stationId[1];
+  tx_msg[8] = stationId[0];
+
+  rx_msg[5] = stationId[3];
+  rx_msg[6] = stationId[2];
+  rx_msg[7] = stationId[1];
+  rx_msg[8] = stationId[0];
+
   stationMode = mode;
 
+  dwt_reset();
+
+  _fastSPI = SPISettings(16000000L, MSBFIRST, SPI_MODE0);
   spiBegin(PIN_IRQ, PIN_RST);
   spiSelect(PIN_SS);
 
   delay(2);  // Time needed for DW3000 to start up (transition from INIT_RC to IDLE_RC, or could wait for SPIRDY event)
 
-
-  if (stationMode == STATION_MODE_INITIATOR) {
-    _fastSPI = SPISettings(16000000L, MSBFIRST, SPI_MODE0);
-
-    /* Configure the TX spectrum parameters (power, PG delay and PG count) */
-    dwt_configuretxrf(&txconfig_options);
-  } else if (stationMode == STATION_MODE_RESPONDER) {
-    /* Configure the TX spectrum parameters (power, PG delay and PG count) */
-    dwt_configuretxrf(&txconfig_options_rx);
-
-    /* Set expected response's delay and timeout. See NOTE 1 and 5 below.
-       As this example only handles one incoming frame with always the same delay and timeout, those values can be set here once for all. */
-    dwt_setrxaftertxdelay(POLL_TX_TO_RESP_RX_DLY_UUS);
-    dwt_setrxtimeout(RESP_RX_TIMEOUT_UUS);
-  }
-
-  while (!dwt_checkidlerc())  // Need to make sure DW IC is in IDLE_RC before proceeding
-  {
-    UART_puts("IDLE FAILED\r\n");
-    while (1) {
-      Serial.println("--- M1");
-    };
+  while (!dwt_checkidlerc()) {  // Need to make sure DW IC is in IDLE_RC before proceeding
+    Serial.println("dwt_checkidlerc() failed");
+    return 1;
   }
 
   if (dwt_initialise(DWT_DW_INIT) == DWT_ERROR) {
-    UART_puts("INIT FAILED\r\n");
-    while (1) {
-      Serial.println("--- M2");
-    };
+    Serial.println("dwt_initialise() failed");
+    return 2;
   }
 
   // Enabling LEDs here for debug so that for each TX the D1 LED will flash on DW3000 red eval-shield boards.
   dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
 
-  if (dwt_configure(&config))  // if the dwt_configure returns DWT_ERROR either the PLL or RX calibration has failed the host should reset the device
-  {
-    UART_puts("CONFIG FAILED\r\n");
-    while (1) {
-      Serial.println("--- M3");
-    };
+  if (dwt_configure(&config)) {  // if the dwt_configure returns DWT_ERROR either the PLL or RX calibration has failed the host should reset the device
+    Serial.println("dwt_configure() failed");
+    return 3;
   }
+
+
+  dwt_configuretxrf(&txconfig_options);
+
+  // FIXME: maybe change timeout dynamic on MQTT message?
+  if (stationMode == STATION_MODE_INITIATOR)
+    dwt_setrxtimeout(0);
+  else if (stationMode == STATION_MODE_RESPONDER)
+    dwt_setrxtimeout(0);
 
   /* Apply default antenna delay value. See NOTE 2 below. */
   dwt_setrxantennadelay(RX_ANT_DLY);
   dwt_settxantennadelay(TX_ANT_DLY);
+  dwt_setrxaftertxdelay(TX_TO_RX_DLY_UUS);
 
   /* Next can enable TX/RX states output on GPIOs 5 and 6 to help debug, and also TX/RX LEDs
    * Note, in real low power applications the LEDs should not be used. */
   dwt_setlnapamode(DWT_LNA_ENABLE | DWT_PA_ENABLE);
 
+  Serial.printf("(RangingSystem): started with address %c%c%c%c", (char)stationId[0], (char)stationId[1], (char)stationId[2], (char)stationId[3]);
+  Serial.println();
+
   return DWT_INIT_SUCCESS;
 }
 
-int8_t RangingSystem::init(uint8_t stationId[4], int irq, int rst, int ss) {
-  std::copy(stationId, stationId + 4, myID);
-
-  spiBegin(irq, rst);
-  spiSelect(ss);
-
-  dwt_reset();
-
-  /* Time needed for DW3000 to start up (transition from INIT_RC to IDLE_RC */
-  delay(200);
-
-  /* Need to make sure DW IC is in IDLE_RC before proceeding */
-  while (!dwt_checkidlerc()) {
-    Serial.println("ranging_init: IDLE FAILED");
-    return 2;
-  }
-
-  if (dwt_initialise(DWT_DW_INIT) == DWT_ERROR) {
-    Serial.println("ranging_init: INIT FAILED");
-    return 3;
-  }
-
-  /* Configure DW IC. See NOTE 2 below. */
-  /* if the dwt_configure returns DWT_ERROR either the PLL or RX calibration
-     * has failed the host should reset the device */
-  if (dwt_configure(&config)) {
-    Serial.println("ranging_init: CONFIG FAILED");
-    return 4;
-  }
-
-  /* Configure the TX spectrum parameters (power, PG delay and PG count) */
-  dwt_configuretxrf(&txconfig_options);
-
-  /* Apply default antenna delay value. See NOTE 1 below. */
-  dwt_setrxantennadelay(RX_ANT_DLY);
-  dwt_settxantennadelay(TX_ANT_DLY);
-
-  /* Next can enable TX/RX states output on GPIOs 5 and 6 to help debug,
-     * and also TX/RX LEDs.
-     * Note, in real low power applications the LEDs should not be used. */
-  dwt_setlnapamode(DWT_LNA_ENABLE | DWT_PA_ENABLE);
-
-  dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
-
-  Serial.printf("(RangingSystem): started with address %c%c%c%c", (char)stationId[0], (char)stationId[1], (char)stationId[2], (char)stationId[3]);
-  Serial.println();
-  return 0;
-}
-
-int16_t RangingSystem::initiateRanging(uint8_t oID[4], uint32_t timeout) {
+float RangingSystem::initiateRanging(uint32_t timeout) {
   this->reset();
 
-  std::copy(oID, oID + 4, otherID);
-
-  Serial.printf("(RangingSystem): initiate raning to %c%c%c%c with timeout %u", (char)oID[0], (char)oID[1], (char)oID[2], (char)oID[3], timeout);
+  Serial.printf("(RangingSystem): initiate raning to %c%c%c%c with timeout %u", (char)responderId[0], (char)responderId[1], (char)responderId[2], (char)responderId[3], timeout);
   Serial.println();
 
-  initator_poll_msg[5] = myID[0];
-  initator_poll_msg[6] = myID[1];
-  initator_poll_msg[7] = myID[2];
-  initator_poll_msg[8] = myID[3];
-
-  responder_msg[5] = otherID[0];
-  responder_msg[6] = otherID[1];
-  responder_msg[7] = otherID[2];
-  responder_msg[8] = otherID[3];
-
-  initator_final_msg[5] = myID[0];
-  initator_final_msg[6] = myID[1];
-  initator_final_msg[7] = myID[2];
-  initator_final_msg[8] = myID[3];
-  Serial.println("--- 1");
-
-  /* Set expected response's delay and timeout. See NOTE 4, 5 and 7 below.
-     * As this example only handles one incoming frame with always the same
-     * delay and timeout, those values can be set here once for all. */
-  dwt_setrxaftertxdelay(POLL_TX_TO_RESP_RX_DLY_UUS);
-  dwt_setrxtimeout(RESP_RX_TIMEOUT_UUS);
-  dwt_setpreambledetecttimeout(PRE_TIMEOUT);
-
-  /* Write frame data to DW IC and prepare transmission. See NOTE 9 below. */
-  initator_poll_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
-  dwt_writetxdata(sizeof(initator_poll_msg) - 2, initator_poll_msg, 0); /* Zero offset in TX buffer. */
-  dwt_writetxfctrl(sizeof(initator_poll_msg) - 2 + FCS_LEN, 0, 1);      /* Zero offset in TX buffer, ranging. */
-
-  /* Start transmission, indicating that a response is expected so that
-     * reception is enabled automatically after the frame is sent and the
-     * delay set by dwt_setrxaftertxdelay() has elapsed. */
-  dwt_starttx(DWT_START_TX_IMMEDIATE | DWT_RESPONSE_EXPECTED);
-
-  /* We assume that the transmission is achieved correctly, poll for
-     * reception of a frame or error/timeout. See NOTE 10 below. */
   this->timeout_started = millis();
-  while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR))) {
-    if (timeout > 0 && millis() - this->timeout_started > timeout) return -3;
-  }
-
-  /* Increment frame sequence number after transmission of the
-     * poll message (modulo 256). */
-  frame_seq_nb++;
-
-  if (status_reg & SYS_STATUS_RXFCG_BIT_MASK) {
-    /* Clear good RX frame event and TX frame sent in the DW IC status register. */
-    dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_TXFRS_BIT_MASK);
-
-    /* A frame has been received, read it into the local buffer. */
-    uint32_t frame_len = dwt_read32bitreg(RX_FINFO_ID) & FRAME_LEN_MAX_EX;
-    if (frame_len <= RX_BUF_LEN) dwt_readrxdata(rx_buffer, frame_len, 0);
-
-    /* Check that the frame is the expected response from the
-         * companion "DS TWR responder" example.
-         * As the sequence number field of the frame is not relevant,
-         * it is cleared to simplify the validation of the frame. */
-    rx_buffer[ALL_MSG_SN_IDX] = 0;
-    if (memcmp(rx_buffer, responder_msg, ALL_MSG_COMMON_LEN) == 0) {
-      uint32_t final_tx_time;
-
-      /* Retrieve poll transmission and response reception timestamp. */
-      poll_ts = get_tx_timestamp_u64();
-      resp_ts = get_rx_timestamp_u64();
-
-      /* Compute final message transmission time. See NOTE 11 below. */
-      final_tx_time = (resp_ts + (RESP_RX_TO_FINAL_TX_DLY_UUS * UUS_TO_DWT_TIME)) >> 8;
-      dwt_setdelayedtrxtime(final_tx_time);
-
-      /* Final TX timestamp is the transmission time we programmed
-             * plus the TX antenna delay. */
-      final_ts = (((uint64_t)(final_tx_time & 0xFFFFFFFEUL)) << 8) + TX_ANT_DLY;
-
-      /* Write all timestamps in the final message. See NOTE 12 below. */
-      final_msg_set_ts(&initator_final_msg[FINAL_MSG_POLL_TX_TS_IDX], poll_ts);
-      final_msg_set_ts(&initator_final_msg[FINAL_MSG_RESP_RX_TS_IDX], resp_ts);
-      final_msg_set_ts(&initator_final_msg[FINAL_MSG_FINAL_TX_TS_IDX], final_ts);
-
-      /* Write and send final message. See NOTE 9 below. */
-      initator_final_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
-      dwt_writetxdata(sizeof(initator_final_msg) - 2, initator_final_msg, 0); /* Zero offset in TX buffer. */
-      dwt_writetxfctrl(sizeof(initator_final_msg) - 2 + FCS_LEN, 0, 1);       /* Zero offset in TX buffer, ranging bit set. */
-
-      /* If dwt_starttx() returns an error, abandon this ranging exchange and
-             * proceed to the next one. See NOTE 13 below. */
-      if (dwt_starttx(DWT_START_TX_DELAYED) == DWT_SUCCESS) {
-        /* Poll DW IC until TX frame sent event set. See NOTE 10 below. */
-        this->timeout_started = millis();
-        while (!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS_BIT_MASK)) {
-          if (timeout > 0 && millis() - this->timeout_started > timeout) return -3;
-        }
-
-        /* Clear TXFRS event. */
+  while (1) {
+    if (timeout > 0 && millis() - this->timeout_started > timeout) return -2.0f;
+    if (!wait_ack && !wait_final) {
+      // Broadcast zum Start einer Messung
+      Serial.println("(RangingSystem): DBG Broadcast start ranging");
+      wait_ack = true;
+      tx_msg[MSG_SN_IDX] = frame_seq_nb;
+      tx_msg[MSG_FUNC_IDX] = FUNC_CODE_POLL;
+      for (size_t i = 0; i < 5; i++) {
         dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS_BIT_MASK);
-
-        /* Increment frame sequence number after transmission of the
-                 * final message (modulo 256). */
-        frame_seq_nb++;
-        return 1;
+        dwt_writetxdata((uint16_t)(MSG_LEN), tx_msg, 0);
+        dwt_writetxfctrl((uint16_t)(MSG_LEN), 0, 1);
+        dwt_starttx(DWT_START_TX_IMMEDIATE | DWT_RESPONSE_EXPECTED);
       }
+    } else {
+      dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS_BIT_MASK);
+      dwt_rxenable(DWT_START_RX_IMMEDIATE);
     }
-  } else
-    /* Clear RX error/timeout events in the DW IC status register. */
-    dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR | SYS_STATUS_TXFRS_BIT_MASK);
 
-  /* Execute a delay between ranging exchanges. */
-  delay(RNG_DELAY_MS);
-  return 0;
+    this->subtimeout_started = millis();
+    int remainingTimeout = timeout - (this->subtimeout_started - this->timeout_started);
+    // --
+    while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR))) {
+      if (remainingTimeout <= 0 || millis() - this->subtimeout_started > remainingTimeout) return -3.0f;
+    }
+
+    /* receive ack msg or final msg */
+    if (status_reg & SYS_STATUS_RXFCG_BIT_MASK) {
+      dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG_BIT_MASK);
+      dwt_readrxdata(rx_buffer, BUF_LEN, 0);
+      // Wenn die Antwort des Broadcast nicht die ResponderID ist, versuche es erneut.
+      if (!isValidMsg(rx_buffer, responderId)) {
+        Serial.println("(RangingSystem): DBG !isValidMsg");
+        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
+        wait_ack = false;
+        wait_final = false;
+        continue;
+      }
+
+      //Wird ausgelöst, wenn die Nachricht aus dem rx_buffer vom richtig Responder ist.
+      if (wait_ack) {
+        poll_tx_ts = get_tx_timestamp_u64();
+        t_round_1 = get_rx_timestamp_u64() - poll_tx_ts;
+        resp_msg_get_ts(&rx_buffer[MSG_T_REPLY_IDX], &t_reply_1);
+      } else {
+        resp_msg_get_ts(&rx_buffer[MSG_T_REPLY_IDX], &t_round_2);
+      }
+    } else { /* timeout or error, reset, send ack*/
+      Serial.println("(RangingSystem): DBG timeout or error, reset, send ack to responders");
+      tx_msg[MSG_SN_IDX] = frame_seq_nb;
+      tx_msg[MSG_FUNC_IDX] = FUNC_CODE_RESET;
+      for (size_t i = 0; i < 5; i++) {
+        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS_BIT_MASK);
+        dwt_writetxdata((uint16_t)(MSG_LEN), tx_msg, 0);
+        dwt_writetxfctrl((uint16_t)(MSG_LEN), 0, 1);
+        dwt_starttx(DWT_START_TX_IMMEDIATE);
+        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
+      }
+
+      wait_ack = false;
+      wait_final = false;
+      delay(1);
+      return -1.0f;
+    }
+    if (wait_ack) {
+      /* received all ack msg send range msg*/
+      Serial.println("(RangingSystem): DBG send range msg");
+      tx_time = (get_rx_timestamp_u64() + (RX_TO_TX_DLY_UUS * UUS_TO_DWT_TIME)) >> 8;
+      tx_ts = (((uint64_t)(tx_time & 0xFFFFFFFEUL)) << 8) + TX_ANT_DLY;
+      dwt_setdelayedtrxtime(tx_time);
+      tx_msg[MSG_SN_IDX] = frame_seq_nb;
+      tx_msg[MSG_FUNC_IDX] = FUNC_CODE_RANGE;
+
+      for (size_t i = 0; i < 5; i++) {
+        dwt_writetxdata((uint16_t)(BUF_LEN), tx_msg, 0);
+        dwt_writetxfctrl((uint16_t)(BUF_LEN), 0, 1);
+        dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
+        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS_BIT_MASK);
+      }
+
+      wait_ack = false;
+      wait_final = true;
+      continue;
+    }
+    if (wait_final) { /* received all final msg */
+      Serial.println("(RangingSystem): DBG received all final msg");
+      range_tx_ts = get_tx_timestamp_u64();
+
+      t_reply_2 = range_tx_ts - (t_round_1 + poll_tx_ts);
+      tof = (t_round_1 * t_round_2 - t_reply_1 * t_reply_2) / (t_round_1 + t_round_2 + t_reply_1 + t_reply_2) * DWT_TIME_UNITS;
+      distance = tof * SPEED_OF_LIGHT;
+      snprintf(dist_str, sizeof(dist_str), "%3.3f m\t", distance);
+      Serial.print("\t");
+      Serial.print(dist_str);
+
+      Serial.println();
+      wait_ack = false;
+      wait_final = false;
+      frame_seq_nb++;
+      return distance;
+    }
+  }
+  return 0.0;
 }
 
-float RangingSystem::respondToRanging(uint8_t oID[4], uint32_t timeout) {
+int16_t RangingSystem::respondToRanging(uint32_t timeout) {
   this->reset();
 
-  std::copy(oID, oID + 4, otherID);
-
-  Serial.printf("(RangingSystem): start responding to %c%c%c%c with timeout %u", (char)oID[0], (char)oID[1], (char)oID[2], (char)oID[3], timeout);
+  Serial.printf("(RangingSystem): start responding to %c%c%c%c with timeout %u", (char)initiatorId[0], (char)initiatorId[1], (char)initiatorId[2], (char)initiatorId[3], timeout);
   Serial.println();
 
-  initator_poll_msg[5] = otherID[0];
-  initator_poll_msg[6] = otherID[1];
-  initator_poll_msg[7] = otherID[2];
-  initator_poll_msg[8] = otherID[3];
-
-  responder_msg[5] = myID[0];
-  responder_msg[6] = myID[1];
-  responder_msg[7] = myID[2];
-  responder_msg[8] = myID[3];
-
-  initator_final_msg[5] = otherID[0];
-  initator_final_msg[6] = otherID[1];
-  initator_final_msg[7] = otherID[2];
-  initator_final_msg[8] = otherID[3];
-
-  dwt_setpreambledetecttimeout(0);
-  /* Clear reception timeout to start next ranging process. */
-  dwt_setrxtimeout(0);
-
-  /* Activate reception immediately. */
-  dwt_rxenable(DWT_START_RX_IMMEDIATE);
-
-  /* Poll for reception of a frame or error/timeout. See NOTE 8 below. */
   this->timeout_started = millis();
-  while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR))) {
+  while (1) {
     if (timeout > 0 && millis() - this->timeout_started > timeout) return -2;
-  }
+    dwt_rxenable(DWT_START_RX_IMMEDIATE);
 
-  if (status_reg & SYS_STATUS_RXFCG_BIT_MASK) {
-    /* Clear good RX frame event in the DW IC status register. */
-    dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG_BIT_MASK);
+    this->subtimeout_started = millis();
+    int remainingTimeout = timeout - (this->subtimeout_started - this->timeout_started);
+    while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_ERR))) {
+      if (remainingTimeout <= 0 || millis() - this->subtimeout_started > remainingTimeout) return -3;
+    }
 
-    /* A frame has been received, read it into the local buffer. */
-    uint32_t frame_len = dwt_read32bitreg(RX_FINFO_ID) & FRAME_LEN_MAX_EX;
-    if (frame_len <= RX_BUF_LEN) dwt_readrxdata(rx_buffer, frame_len, 0);
+    if (status_reg & SYS_STATUS_RXFCG_BIT_MASK) { /* receive msg */
+      dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG_BIT_MASK);
+      dwt_readrxdata(rx_buffer, BUF_LEN, 0);
+      // Wenn timeout vom Initiator erkannt wurde brodcasted er ein timeout zum resetten
+      if (rx_buffer[MSG_FUNC_IDX] == FUNC_CODE_RESET) {
+        Serial.println("(RangingSystem): received RESET function from initiator");
+        wait_poll = true;
+        wait_range = false;
+        return -2;
+      }
+      if (!isValidMsg(rx_buffer, initiatorId)) {
+        Serial.println("(RangingSystem): DBG !isValidMsg");
+        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
+        wait_poll = true;
+        wait_range = false;
+        continue;
+      }
+      if (wait_poll)  // received poll from U1
+        poll_rx_ts = get_rx_timestamp_u64();
+      else if (wait_range)
+        range_rx_ts = get_rx_timestamp_u64();
+    } else {
+      wait_poll = true;
+      wait_range = false;
+      dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_ERR | SYS_STATUS_ALL_RX_TO);
+      continue;
+    }
+    if (wait_poll) {
+      Serial.println("(RangingSystem): DBG send wait_poll");
+      tx_time = (get_rx_timestamp_u64() + (RX_TO_TX_DLY_UUS * UUS_TO_DWT_TIME)) >> 8;
+      tx_ts = (((uint64_t)(tx_time & 0xFFFFFFFEUL)) << 8) + TX_ANT_DLY;
+      dwt_setdelayedtrxtime(tx_time);
+      tx_msg[MSG_SN_IDX] = frame_seq_nb;
+      tx_msg[MSG_FUNC_IDX] = FUNC_CODE_ACK;
+      resp_msg_set_ts(&tx_msg[MSG_T_REPLY_IDX], tx_ts - poll_rx_ts);
 
-    /* Check that the frame is a poll sent by "DS TWR initiator" example.
-         * As the sequence number field of the frame is not relevant, it
-         * is cleared to simplify the validation of the frame.
-         */
-    rx_buffer[ALL_MSG_SN_IDX] = 0;
-    if (memcmp(rx_buffer, initator_poll_msg, ALL_MSG_COMMON_LEN) == 0) {
-      uint32_t resp_tx_time;
-
-      /* Retrieve poll reception timestamp. */
-      poll_ts = get_rx_timestamp_u64();
-
-      /* Set send time for response. See NOTE 9 below. */
-      resp_tx_time = (poll_ts + (POLL_RX_TO_RESP_TX_DLY_UUS * UUS_TO_DWT_TIME)) >> 8;
-      dwt_setdelayedtrxtime(resp_tx_time);
-
-      /* Set expected delay and timeout for final message reception. See NOTE 4 and 5 below. */
-      dwt_setrxaftertxdelay(RESP_TX_TO_FINAL_RX_DLY_UUS);
-      dwt_setrxtimeout(FINAL_RX_TIMEOUT_UUS);
-
-      /* Set preamble timeout for expected frames. See NOTE 6 below. */
-      dwt_setpreambledetecttimeout(PRE_TIMEOUT);
-
-      /* Write and send the response message. See NOTE 10 below.*/
-      responder_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
-      dwt_writetxdata(sizeof(responder_msg), responder_msg, 0); /* Zero offset in TX buffer. */
-      dwt_writetxfctrl(sizeof(responder_msg), 0, 1);            /* Zero offset in TX buffer, ranging. */
-      int ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
-
-      /* If dwt_starttx() returns an error, abandon this ranging
-             * exchange and proceed to the next one. See NOTE 11 below. */
-      if (ret == DWT_ERROR) return -1;
-
-      /* Poll for reception of expected "final" frame or error/timeout.
-             * See NOTE 8 below.
-             */
-      this->timeout_started = millis();
-      while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR))) {
-        if (timeout > 0 && millis() - this->timeout_started > timeout) return -3;
+      for (size_t i = 0; i < 5; i++) {
+        dwt_writetxdata((uint16_t)(BUF_LEN), tx_msg, 0);
+        dwt_writetxfctrl((uint16_t)(BUF_LEN), 0, 1);
+        dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
+        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS_BIT_MASK);
       }
 
-      /* Increment frame sequence number after transmission of the
-             * response message (modulo 256).
-             */
-      frame_seq_nb++;
-
-      if (status_reg & SYS_STATUS_RXFCG_BIT_MASK) {
-        /* Clear good RX frame event and TX frame sent in the DW IC status register. */
-        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_TXFRS_BIT_MASK);
-
-        /* A frame has been received, read it into the local buffer. */
-        frame_len = dwt_read32bitreg(RX_FINFO_ID) & FRAME_LEN_MAX_EX;
-        if (frame_len <= RX_BUF_LEN) dwt_readrxdata(rx_buffer, frame_len, 0);
-
-        /* Check that the frame is a final message sent by
-                 * "DS TWR initiator" example.
-                 * As the sequence number field of the frame is not used in
-                 * this example, it can be zeroed to ease the validation of
-                 * the frame.
-                 */
-        rx_buffer[ALL_MSG_SN_IDX] = 0;
-        if (memcmp(rx_buffer, initator_final_msg, ALL_MSG_COMMON_LEN) == 0) {
-          uint32_t poll_tx_ts, resp_rx_ts, final_tx_ts;
-          uint32_t poll_rx_ts_32, resp_tx_ts_32, final_rx_ts_32;
-          double Ra, Rb, Da, Db;
-          int64_t tof_dtu;
-
-          /* Retrieve response transmission and final
-                     * reception timestamps. */
-          resp_ts = get_tx_timestamp_u64();
-          final_ts = get_rx_timestamp_u64();
-
-          /* Get timestamps embedded in the final message. */
-          final_msg_get_ts(&rx_buffer[FINAL_MSG_POLL_TX_TS_IDX], &poll_tx_ts);
-          final_msg_get_ts(&rx_buffer[FINAL_MSG_RESP_RX_TS_IDX], &resp_rx_ts);
-          final_msg_get_ts(&rx_buffer[FINAL_MSG_FINAL_TX_TS_IDX], &final_tx_ts);
-
-          /* Compute time of flight. 32-bit subtractions give
-                     * correct answers even if clock has wrapped.
-                     * See NOTE 12 below. */
-          poll_rx_ts_32 = (uint32_t)poll_ts;
-          resp_tx_ts_32 = (uint32_t)resp_ts;
-          final_rx_ts_32 = (uint32_t)final_ts;
-          Ra = (double)(resp_rx_ts - poll_tx_ts);
-          Rb = (double)(final_rx_ts_32 - resp_tx_ts_32);
-          Da = (double)(final_tx_ts - resp_rx_ts);
-          Db = (double)(resp_tx_ts_32 - poll_rx_ts_32);
-          tof_dtu = (int64_t)((Ra * Rb - Da * Db) / (Ra + Rb + Da + Db));
-
-          tof = tof_dtu * DWT_TIME_UNITS;
-          distance = tof * SPEED_OF_LIGHT;
-
-          /* Display computed distance. */
-          Serial.println(String(distance * 100) + "cm");
-
-          /* As DS-TWR initiator is waiting for RNG_DELAY_MS
-                     * before next poll transmission we can add a delay
-                     * here before RX is re-enabled again.
-                     */
-          // delay(RNG_DELAY_MS - 10);  // start couple of ms earlier
-          return distance * 1000;
-        }
-      } else
-        /* Clear RX error/timeout events in the DW IC
-                 * status register. */
-        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
+      /* all anchors sent the ack msgs */
+      wait_poll = false;
+      wait_range = true;
+      continue;
     }
-  } else
-    /* Clear RX error/timeout events in the DW IC status register. */
-    dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
+    if (wait_range) {
+      /* send final msg */
+      Serial.println("(RangingSystem): DBG send final msg");
+      ack_tx_ts = get_tx_timestamp_u64(); /* ack tx */
+      tx_time = (get_rx_timestamp_u64() + (RX_TO_TX_DLY_UUS * UUS_TO_DWT_TIME)) >> 8;
+      tx_ts = (((uint64_t)(tx_time & 0xFFFFFFFEUL)) << 8) + TX_ANT_DLY;
+      dwt_setdelayedtrxtime(tx_time);
+      resp_msg_set_ts(&tx_msg[MSG_T_REPLY_IDX], range_rx_ts - ack_tx_ts);
+      tx_msg[MSG_SN_IDX] = frame_seq_nb;
+      tx_msg[MSG_FUNC_IDX] = FUNC_CODE_FINAL;
 
-  return 0;
+      for (size_t i = 0; i < 5; i++) {
+        dwt_writetxdata((uint16_t)(BUF_LEN), tx_msg, 0);
+        dwt_writetxfctrl((uint16_t)(BUF_LEN), 0, 1);
+        dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
+        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS_BIT_MASK);
+      }
+
+      /* all anchors sent the final msgs */
+      wait_poll = true;
+      wait_range = false;
+      frame_seq_nb++;
+      return 0;
+    }
+  }
+
+  return -1;
 }
 
 void RangingSystem::reset() {
-  /* Frames used in the ranging process. See NOTE 2 below. */
-  uint8_t val_initator_poll_msg[] = { 0x41, 0x88, 0, 0xCA, 0xDE, '-', '-', '-', '-', 0x21, 0, 0 };
-  uint8_t val_responder_msg[] = { 0x41, 0x88, 0, 0xCA, 0xDE, '-', '-', '-', '-', 0x10, 0x02, 0, 0, 0, 0 };
-  uint8_t val_initator_final_msg[] = { 0x41, 0x88, 0, 0xCA, 0xDE, '-', '-', '-', '-', 0x23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-  std::copy(val_initator_poll_msg, val_initator_poll_msg + sizeof(val_initator_poll_msg) / sizeof(val_initator_poll_msg[0]), initator_poll_msg);
-  std::copy(val_responder_msg, val_responder_msg + sizeof(val_responder_msg) / sizeof(val_responder_msg[0]), responder_msg);
-  std::copy(val_initator_final_msg, val_initator_final_msg + sizeof(val_initator_final_msg) / sizeof(val_initator_final_msg[0]), initator_final_msg);
+  wait_poll = true;
+  wait_ack = false;
+  wait_range = false;
+  wait_final = false;
 
   /* Frame sequence number, incremented after each transmission. */
   frame_seq_nb = 0;
@@ -467,11 +378,6 @@ void RangingSystem::reset() {
   /* Hold copy of status register state here for reference so that it can be
      * examined at a debug breakpoint. */
   status_reg = 0;
-
-  /* Time-stamps of frames transmission/reception, expressed in device time units. */
-  poll_ts = 0;
-  resp_ts = 0;
-  final_ts = 0;
 
   /* Hold copies of computed time of flight and distance here for reference
      * so that it can be examined at a debug breakpoint. */
