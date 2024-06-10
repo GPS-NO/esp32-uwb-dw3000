@@ -104,7 +104,7 @@ void ActionState::onUpdate() {
               //sprintf(topicBuffer, "%s/result", baseRangingTopicBuffer);
               //mqttManager->publish(topicBuffer, "true");
             } else {
-              Serial.println("(ACTION_STATE): Ranging initiate timeout");
+              Serial.printf("(ACTION_STATE): Ranging initiate timeout %d\r\n", status);
               sprintf(topicBuffer, "%s/initiate/timeout", baseRangingTopicBuffer);
               mqttManager->publish(topicBuffer, String(timeout).c_str());
             }
@@ -122,7 +122,7 @@ void ActionState::onUpdate() {
               sprintf(topicBuffer, "%s/distance", baseRangingTopicBuffer);
               mqttManager->publish(topicBuffer, String(distance).c_str());
             } else {
-              Serial.println("(ACTION_STATE): Ranging timeout");
+              Serial.printf("(ACTION_STATE): Ranging timeout %.0f\r\n", distance);
               sprintf(topicBuffer, "%s/respond/timeout", baseRangingTopicBuffer);
               mqttManager->publish(topicBuffer, String(timeout).c_str());
             }

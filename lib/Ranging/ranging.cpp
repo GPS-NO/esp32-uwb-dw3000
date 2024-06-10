@@ -96,7 +96,7 @@ int8_t RangingSystem::init(uint8_t mID[4], int irq, int rst, int ss) {
      * Note, in real low power applications the LEDs should not be used. */
   dwt_setlnapamode(DWT_LNA_ENABLE | DWT_PA_ENABLE);
 
-  dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
+  dwt_setleds(DWT_LEDS_DISABLE);
 
   Serial.printf("(RangingSystem): started with address %c%c%c%c", (char)mID[0], (char)mID[1], (char)mID[2], (char)mID[3]);
   Serial.println();
@@ -130,7 +130,7 @@ int16_t RangingSystem::initiateRanging(uint8_t oID[4], uint32_t timeout) {
      * As this example only handles one incoming frame with always the same
      * delay and timeout, those values can be set here once for all. */
   dwt_setrxaftertxdelay(POLL_TX_TO_RESP_RX_DLY_UUS);
-  dwt_setrxtimeout(RESP_RX_TIMEOUT_UUS);
+  dwt_setrxtimeout(0);
   dwt_setpreambledetecttimeout(PRE_TIMEOUT);
 
   /* Write frame data to DW IC and prepare transmission. See NOTE 9 below. */
@@ -143,15 +143,13 @@ int16_t RangingSystem::initiateRanging(uint8_t oID[4], uint32_t timeout) {
      * delay set by dwt_setrxaftertxdelay() has elapsed. */
   dwt_starttx(DWT_START_TX_IMMEDIATE | DWT_RESPONSE_EXPECTED);
 
-  /* We assume that the transmission is achieved correctly, poll for
-     * reception of a frame or error/timeout. See NOTE 10 below. */
+  /* We assume that the transmission is achieved correctly, poll for reception of a frame or error/timeout. See NOTE 10 below. */
   this->timeout_started = millis();
   while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR))) {
     if (timeout > 0 && millis() - this->timeout_started > timeout) return -3;
   }
 
-  /* Increment frame sequence number after transmission of the
-     * poll message (modulo 256). */
+  /* Increment frame sequence number after transmission of the poll message (modulo 256). */
   frame_seq_nb++;
 
   if (status_reg & SYS_STATUS_RXFCG_BIT_MASK) {
@@ -178,8 +176,7 @@ int16_t RangingSystem::initiateRanging(uint8_t oID[4], uint32_t timeout) {
       final_tx_time = (resp_ts + (RESP_RX_TO_FINAL_TX_DLY_UUS * UUS_TO_DWT_TIME)) >> 8;
       dwt_setdelayedtrxtime(final_tx_time);
 
-      /* Final TX timestamp is the transmission time we programmed
-             * plus the TX antenna delay. */
+      /* Final TX timestamp is the transmission time we programmed plus the TX antenna delay. */
       final_ts = (((uint64_t)(final_tx_time & 0xFFFFFFFEUL)) << 8) + TX_ANT_DLY;
 
       /* Write all timestamps in the final message. See NOTE 12 below. */
@@ -189,26 +186,26 @@ int16_t RangingSystem::initiateRanging(uint8_t oID[4], uint32_t timeout) {
 
       /* Write and send final message. See NOTE 9 below. */
       initator_final_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
-      dwt_writetxdata(sizeof(initator_final_msg) - 2, initator_final_msg, 0); /* Zero offset in TX buffer. */
-      dwt_writetxfctrl(sizeof(initator_final_msg) - 2 + FCS_LEN, 0, 1);       /* Zero offset in TX buffer, ranging bit set. */
+      for (size_t i = 0; i < 5; i++) {
+        dwt_writetxdata(sizeof(initator_final_msg) - 2, initator_final_msg, 0); /* Zero offset in TX buffer. */
+        dwt_writetxfctrl(sizeof(initator_final_msg) - 2 + FCS_LEN, 0, 1);       /* Zero offset in TX buffer, ranging bit set. */
 
-      /* If dwt_starttx() returns an error, abandon this ranging exchange and
-             * proceed to the next one. See NOTE 13 below. */
-      if (dwt_starttx(DWT_START_TX_DELAYED) == DWT_SUCCESS) {
-        /* Poll DW IC until TX frame sent event set. See NOTE 10 below. */
-        this->timeout_started = millis();
-        while (!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS_BIT_MASK)) {
-          if (timeout > 0 && millis() - this->timeout_started > timeout) return -3;
+        /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. See NOTE 13 below. */
+        if (dwt_starttx(DWT_START_TX_DELAYED) == DWT_SUCCESS) {
+          /* Poll DW IC until TX frame sent event set. See NOTE 10 below. */
+          this->timeout_started = millis();
+          while (!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS_BIT_MASK)) {
+            if (timeout > 0 && millis() - this->timeout_started > timeout) return -3;
+          }
+
+          /* Clear TXFRS event. */
+          dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS_BIT_MASK);
         }
-
-        /* Clear TXFRS event. */
-        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS_BIT_MASK);
-
-        /* Increment frame sequence number after transmission of the
-                 * final message (modulo 256). */
-        frame_seq_nb++;
-        return 1;
       }
+
+      /* Increment frame sequence number after transmission of the final message (modulo 256). */
+      frame_seq_nb++;
+      return 1;
     }
   } else
     /* Clear RX error/timeout events in the DW IC status register. */
@@ -280,7 +277,7 @@ float RangingSystem::respondToRanging(uint8_t oID[4], uint32_t timeout) {
 
       /* Set expected delay and timeout for final message reception. See NOTE 4 and 5 below. */
       dwt_setrxaftertxdelay(RESP_TX_TO_FINAL_RX_DLY_UUS);
-      dwt_setrxtimeout(FINAL_RX_TIMEOUT_UUS);
+      dwt_setrxtimeout(0);
 
       /* Set preamble timeout for expected frames. See NOTE 6 below. */
       dwt_setpreambledetecttimeout(PRE_TIMEOUT);
@@ -362,7 +359,7 @@ float RangingSystem::respondToRanging(uint8_t oID[4], uint32_t timeout) {
                      * here before RX is re-enabled again.
                      */
           // delay(RNG_DELAY_MS - 10);  // start couple of ms earlier
-          return distance * 1000;
+          return distance * 100;
         }
       } else
         /* Clear RX error/timeout events in the DW IC
