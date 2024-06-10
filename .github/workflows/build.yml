@@ -26,14 +26,14 @@ jobs:
       run: |
         export GITHASH=$(git describe --always)
         echo "GITHASH=$GITHASH" >> $GITHUB_ENV
-        sed -i "3s/dev/$GITHASH/" lib/GPSNO/gitHeader.h
-        cat lib/GPSNO/gitHeader.h
+        sed -i "3s/dev/$GITHASH/" lib/gps_no/gitHeader.h
+        cat lib/gps_no/gitHeader.h
         pio pkg install
     - name: Extract Version
       run: |
-        VERSION_MAJOR=$(grep '#define VERSION_MAJOR' lib/GPSNO/boarddefines.h | awk '{print $3}')
-        VERSION_MINOR=$(grep '#define VERSION_MINOR' lib/GPSNO/boarddefines.h | awk '{print $3}')
-        VERSION_PATCH=$(grep '#define VERSION_PATCH' lib/GPSNO/boarddefines.h | awk '{print $3}')
+        VERSION_MAJOR=$(grep '#define VERSION_MAJOR' lib/gps_no/boarddefines.h | awk '{print $3}')
+        VERSION_MINOR=$(grep '#define VERSION_MINOR' lib/gps_no/boarddefines.h | awk '{print $3}')
+        VERSION_PATCH=$(grep '#define VERSION_PATCH' lib/gps_no/boarddefines.h | awk '{print $3}')
         echo "VER=$VERSION_MAJOR.$VERSION_MINOR.$VERSION_PATCH" >> $GITHUB_ENV
     - name: Build
       run: platformio run --environment ${{ matrix.environment }}
