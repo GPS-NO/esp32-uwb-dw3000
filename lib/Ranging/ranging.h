@@ -68,8 +68,8 @@ private:
   uint8_t responder_msg[15];
   uint8_t initator_final_msg[24];
 
-  uint8_t myID[4];
-  uint8_t otherID[4];
+  uint8_t initiatorId[4];
+  uint8_t responderId[4];
 
   uint8_t frame_seq_nb;
   uint8_t rx_buffer[RX_BUF_LEN];
@@ -87,13 +87,34 @@ private:
   dwt_config_t config;
 
   void printHex(uint8_t num);
+  void setMessageId(uint8_t *msg, uint8_t *stationId);
 
 public:
   static RangingSystem *getInstance();
-  int8_t init(uint8_t mID[4], int irq, int rst, int ss);
-  int16_t initiateRanging(uint8_t oID[4], uint32_t timeout = 10000);
-  float respondToRanging(uint8_t oID[4], uint32_t timeout = 10000);
+  int8_t init(int irq, int rst, int ss);
+  int16_t initiateRanging(uint32_t timeout = 10000);
+  float respondToRanging(uint32_t timeout = 10000);
   void reset();
   static void destroy();
+
+  inline uint8_t *getInitiatorId() {
+    return initiatorId;
+  }
+
+  inline void setInitiatorId(uint8_t id[4]) {
+    for (int i = 0; i < 4; i++) {
+      initiatorId[i] = id[i];
+    }
+  }
+
+  inline uint8_t *getResponderId() {
+    return responderId;
+  }
+
+  inline void setResponderId(uint8_t id[4]) {
+    for (int i = 0; i < 4; i++) {
+      responderId[i] = id[i];
+    }
+  }
 };
 #endif

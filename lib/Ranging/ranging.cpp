@@ -41,6 +41,13 @@ RangingSystem::~RangingSystem() {
   destroy();
 }
 
+void RangingSystem::setMessageId(uint8_t *msg, uint8_t *stationId) {
+  msg[5] = stationId[0];
+  msg[6] = stationId[1];
+  msg[7] = stationId[2];
+  msg[8] = stationId[3];
+}
+
 void RangingSystem::destroy() {
   if (instance != nullptr) {
     delete instance;
@@ -54,9 +61,7 @@ void RangingSystem::printHex(uint8_t num) {
   Serial.print(hexCar);
 }
 
-int8_t RangingSystem::init(uint8_t mID[4], int irq, int rst, int ss) {
-  std::copy(mID, mID + 4, myID);
-
+int8_t RangingSystem::init(int irq, int rst, int ss) {
   spiBegin(irq, rst);
   spiSelect(ss);
 
@@ -98,33 +103,19 @@ int8_t RangingSystem::init(uint8_t mID[4], int irq, int rst, int ss) {
 
   dwt_setleds(DWT_LEDS_DISABLE);
 
-  Serial.printf("(RangingSystem): started with address %c%c%c%c", (char)mID[0], (char)mID[1], (char)mID[2], (char)mID[3]);
+  Serial.printf("(RangingSystem): started");
   Serial.println();
   return 0;
 }
 
-int16_t RangingSystem::initiateRanging(uint8_t oID[4], uint32_t timeout) {
+int16_t RangingSystem::initiateRanging(uint32_t timeout) {
   this->reset();
 
-  std::copy(oID, oID + 4, otherID);
+  setMessageId(this->initator_poll_msg, this->initiatorId);
+  setMessageId(this->initator_final_msg, this->initiatorId);
+  setMessageId(this->responder_msg, this->responderId);
 
-  Serial.printf("(RangingSystem): initiate raning to %c%c%c%c with timeout %u", (char)oID[0], (char)oID[1], (char)oID[2], (char)oID[3], timeout);
-  Serial.println();
-
-  initator_poll_msg[5] = myID[0];
-  initator_poll_msg[6] = myID[1];
-  initator_poll_msg[7] = myID[2];
-  initator_poll_msg[8] = myID[3];
-
-  responder_msg[5] = otherID[0];
-  responder_msg[6] = otherID[1];
-  responder_msg[7] = otherID[2];
-  responder_msg[8] = otherID[3];
-
-  initator_final_msg[5] = myID[0];
-  initator_final_msg[6] = myID[1];
-  initator_final_msg[7] = myID[2];
-  initator_final_msg[8] = myID[3];
+  Serial.printf("(RangingSystem): initiate ranging to %c%c%c%c with timeout %u\r\n", (char)this->responderId[0], (char)this->responderId[1], (char)this->responderId[2], (char)this->responderId[3], timeout);
 
   /* Set expected response's delay and timeout. See NOTE 4, 5 and 7 below.
      * As this example only handles one incoming frame with always the same
@@ -216,28 +207,14 @@ int16_t RangingSystem::initiateRanging(uint8_t oID[4], uint32_t timeout) {
   return 0;
 }
 
-float RangingSystem::respondToRanging(uint8_t oID[4], uint32_t timeout) {
+float RangingSystem::respondToRanging(uint32_t timeout) {
   this->reset();
 
-  std::copy(oID, oID + 4, otherID);
+  Serial.printf("(RangingSystem): start responding to %c%c%c%c with timeout %u\r\n", (char)this->initiatorId[0], (char)this->initiatorId[1], (char)this->initiatorId[2], (char)this->initiatorId[3], timeout);
 
-  Serial.printf("(RangingSystem): start responding to %c%c%c%c with timeout %u", (char)oID[0], (char)oID[1], (char)oID[2], (char)oID[3], timeout);
-  Serial.println();
-
-  initator_poll_msg[5] = otherID[0];
-  initator_poll_msg[6] = otherID[1];
-  initator_poll_msg[7] = otherID[2];
-  initator_poll_msg[8] = otherID[3];
-
-  responder_msg[5] = myID[0];
-  responder_msg[6] = myID[1];
-  responder_msg[7] = myID[2];
-  responder_msg[8] = myID[3];
-
-  initator_final_msg[5] = otherID[0];
-  initator_final_msg[6] = otherID[1];
-  initator_final_msg[7] = otherID[2];
-  initator_final_msg[8] = otherID[3];
+  setMessageId(this->initator_poll_msg, this->initiatorId);
+  setMessageId(this->initator_final_msg, this->initiatorId);
+  setMessageId(this->responder_msg, this->responderId);
 
   dwt_setpreambledetecttimeout(0);
   /* Clear reception timeout to start next ranging process. */
