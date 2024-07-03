@@ -10,6 +10,7 @@ void ActionState::onEnter() {
   ranging = RangingSystem::getInstance();
 
   lastHeartbeat = 0;
+  isRunning = true;
   subState = IDLE;
   timeout = 10000;
 
@@ -77,13 +78,17 @@ void ActionState::onAction(const char *payload) {
     mqttManager->registerDevice();
   } else if (strPayload.equalsIgnoreCase("restart")) {
     stateMachinePtr->setStatus(STATUS_RESTARTING);
+    Serial.flush();
     delay(10);
     ESP.restart();
+  } else if (strPayload.equalsIgnoreCase("shutdown")) {
+    isRunning = false;
+    stateMachinePtr->currentState = stateMachinePtr->shutdownState;
   }
 }
 
 void ActionState::onUpdate() {
-  while (1) {
+  while (isRunning) {
     if (Serial.available() > 0 || subState != IDLE) {
       int nextState = 0;
       if (subState != IDLE) nextState = subState;
@@ -150,5 +155,4 @@ void ActionState::onUpdate() {
 }
 
 void ActionState::onExit() {
-  mqttManager->unsubscribeAll();
 }

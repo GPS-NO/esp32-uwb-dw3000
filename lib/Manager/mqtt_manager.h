@@ -26,11 +26,11 @@ private:
   static void processMessage(const char *topic, byte *payload, unsigned int length);
 
   MqttManager();
+  ~MqttManager();
 
 public:
   static MqttManager *getInstance();
 
-  ~MqttManager();
   void publish(const char *topic, const char *payload);
   void subscribe(const char *topic, MQTTCallback callback);
   void unsubscribe(const char *topic);

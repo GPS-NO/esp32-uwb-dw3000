@@ -4,12 +4,6 @@ void IdleState::onEnter() {
   Serial.println("[*] Enter State: Idle");
   stateMachinePtr = StateMachine::getInstance();
   stateMachinePtr->setStatus(STATUS_IDLE);
-
-  /*
-  ConfigManager::destroy();
-  MqttManager::destroy();
-  RangingSystem::destroy();
-*/
 }
 
 void IdleState::onUpdate() {

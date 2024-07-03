@@ -10,24 +10,18 @@ void SetupState::onEnter() {
   ranging = RangingSystem::getInstance();
   rangingInitResult = ranging->init(PIN_IRQ, PIN_RST, PIN_SS);
 
-  if (!mqttManager->isConfigAvailable()) {
+  while (!mqttManager->isConfigAvailable()) {
     Serial.println("[*] No configuration found. Entering configuration mode.");
     delay(2500);
-    this->onEnter();
-    //Welche Routine müsste man umsetzen, falls keine Config existiert?
   }
-
-  mqttManager->connect();
 }
 
 void SetupState::onUpdate() {
   if (healthCheck()) {
+    mqttManager->sendHeartbeat();
     mqttManager->registerDevice();
-    mqttManager->loop();
 
     stateMachinePtr->currentState = stateMachinePtr->actionState;
-    SetupState::onExit();
-    return;
   }
   delay(2500);
   //Should it step back to the initial state if the health check fails?
@@ -52,6 +46,4 @@ bool SetupState::healthCheck() {
   return true;
 }
 
-void SetupState::onExit() {
-  mqttManager->unsubscribeAll();
-}
+void SetupState::onExit() {}

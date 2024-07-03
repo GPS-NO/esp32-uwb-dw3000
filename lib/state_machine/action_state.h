@@ -26,6 +26,7 @@ private:
   uint8_t initiatorId[4];
   uint8_t responderId[4];
   uint32_t timeout;
+  bool isRunning;
 
 protected:
   MqttManager *mqttManager;

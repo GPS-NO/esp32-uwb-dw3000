@@ -6,6 +6,7 @@ static LinkedList<MqttSubscription *> subscriptions = LinkedList<MqttSubscriptio
 MqttManager::MqttManager()
   : mqttClient(wifiClient) {
   configManager = ConfigManager::getInstance();
+  this->connect();
 }
 
 MqttManager *MqttManager::getInstance() {
@@ -17,14 +18,16 @@ MqttManager *MqttManager::getInstance() {
 }
 
 MqttManager::~MqttManager() {
-  destroy();
 }
 
 void MqttManager::destroy() {
   if (instance != nullptr) {
+    if (subscriptions.size() > 0) {
+      subscriptions.clear();
+    }
+
     delete instance;
     instance = nullptr;
-    subscriptions.clear();
   }
 }
 
@@ -160,12 +163,15 @@ void MqttManager::connect() {
   mqttClient.connect(configManager->deviceConfig.deviceId, username, password);
   mqttClient.setCallback(MqttManager::processMessage);
 
-  this->sendHeartbeat();
-  this->registerDevice();
+  this->mqttClient.loop();
 }
 
 bool MqttManager::isConnected() {
-  return this->mqttClient.connected();
+  if (instance == NULL) {
+    return false;
+  }
+
+  return mqttClient.connected();
 }
 
 bool MqttManager::isWifiConnected() {
@@ -173,10 +179,12 @@ bool MqttManager::isWifiConnected() {
 }
 
 void MqttManager::updateStationStatus(const char *status) {
-  char topicBuffer[64];
+  if (!mqttClient.connected()) return;
 
+
+  char topicBuffer[64];
   sprintf(topicBuffer, "%s/status", this->getBaseTopic().c_str());
-  Serial.println(status);
+
   mqttClient.publish(topicBuffer, status);
 }
 

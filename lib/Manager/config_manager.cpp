@@ -9,9 +9,7 @@ DeviceConfig ConfigManager::deviceConfig;
 
 ConfigManager::ConfigManager() {}
 
-ConfigManager::~ConfigManager() {
-  destroy();
-}
+ConfigManager::~ConfigManager() {}
 
 void ConfigManager::destroy() {
   if (instance != nullptr) {

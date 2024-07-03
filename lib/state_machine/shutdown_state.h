@@ -4,6 +4,7 @@
 #include <Arduino.h>
 
 #include "state_machine.h"
+#include "ranging.h"
 
 class ShutdownState : public State {
 public:
@@ -13,6 +14,10 @@ public:
 
 private:
   StateMachine *stateMachinePtr;
+
+  ConfigManager *configManager;
+  MqttManager *mqttManager;
+  RangingSystem *ranging;
 };
 
 #endif

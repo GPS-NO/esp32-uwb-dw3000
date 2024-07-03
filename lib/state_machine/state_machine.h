@@ -13,24 +13,25 @@ enum StationStateEnum {
   STATUS_IDLE,
   STATUS_READY,
   STATUS_ERROR,
-  STATUS_RESTARTING,
   STATUS_SETUP,
+  STATUS_SHUTDOWN,
+  STATUS_RESTARTING,
   STATUS_OFFLINE
 };
 
 class StateMachine {
 public:
-  static StateMachine* getInstance();
-  ~StateMachine();
-  const char* getStationStateString() const;
-  void setStatus(StationStateEnum status);
-
   State* currentState;
   State* idleState;
   State* setupState;
   State* actionState;
   State* errorState;
   State* shutdownState;
+
+  static StateMachine* getInstance();
+  ~StateMachine();
+  const char* getStationStateString() const;
+  void setStatus(StationStateEnum status);
 
 private:
   static StateMachine* instance;

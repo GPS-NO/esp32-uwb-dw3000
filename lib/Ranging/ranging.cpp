@@ -38,7 +38,6 @@ RangingSystem::RangingSystem() {
 }
 
 RangingSystem::~RangingSystem() {
-  destroy();
 }
 
 void RangingSystem::setMessageId(uint8_t *msg, uint8_t *stationId) {

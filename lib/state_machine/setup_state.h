@@ -19,15 +19,15 @@ public:
 
 private:
   StateMachine *stateMachinePtr;
+
+  ConfigManager *configManager;
+  MqttManager *mqttManager;
+  RangingSystem *ranging;
+
   int8_t rangingInitResult;
 
   void connectToWiFi(const char *ssid, const char *password);
   bool healthCheck();
-
-protected:
-  ConfigManager *configManager;
-  MqttManager *mqttManager;
-  RangingSystem *ranging;
 };
 
 #endif
